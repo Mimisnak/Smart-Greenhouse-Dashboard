@@ -426,6 +426,23 @@ void uploadSensorsToFirebase() {
     
     if (success) {
         Serial.println("[OK] All sensor data uploaded successfully!");
+        
+        // Save to history with millis() as timestamp
+        unsigned long currentTime = millis();
+        String historyPath = "/greenhouse/history/" + String(currentTime);
+        
+        FirebaseJson json;
+        json.set("temperature", sensors.temperature);
+        json.set("pressure", sensors.pressure);
+        json.set("soil_moisture", sensors.soilMoisture);
+        json.set("timestamp", (int)currentTime);
+        
+        if (Firebase.RTDB.setJSON(&fbdo, historyPath.c_str(), &json)) {
+            Serial.printf("[HISTORY] Saved: T=%.1f°C, P=%.1f hPa, M=%d%% at %lu\n", 
+                         sensors.temperature, sensors.pressure, sensors.soilMoisture, currentTime);
+        } else {
+            Serial.printf("[ERROR] History save failed: %s\n", fbdo.errorReason().c_str());
+        }
     }
 }
 

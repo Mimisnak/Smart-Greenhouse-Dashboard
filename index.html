@@ -51,6 +51,24 @@
                     </div>
                 </div>
 
+                <!-- Altitude Card -->
+                <div class="card">
+                    <div class="card-content">
+                        <h3>Υψόμετρο</h3>
+                        <div class="value-display" id="altitude">--</div>
+                        <span class="unit">m</span>
+                    </div>
+                </div>
+
+                <!-- Light Sensor Card -->
+                <div class="card">
+                    <div class="card-content">
+                        <h3>Φωτισμός</h3>
+                        <div class="value-display" id="light">--</div>
+                        <span class="unit">lux</span>
+                    </div>
+                </div>
+
                 <!-- Water Pump Control Card -->
                 <div class="card card-large card-control">
                     <div class="card-content">
@@ -164,6 +182,8 @@
                 // Update sensor values
                 document.getElementById('temperature').textContent = data.temperature ? data.temperature.toFixed(1) : '--';
                 document.getElementById('pressure').textContent = data.pressure ? data.pressure.toFixed(1) : '--';
+                document.getElementById('altitude').textContent = data.altitude ? data.altitude.toFixed(0) : '--';
+                document.getElementById('light').textContent = data.light || '--';
                 document.getElementById('soilMoisture').textContent = (data.soil_moisture !== undefined && data.soil_moisture !== null) ? data.soil_moisture : '--';
                 document.getElementById('soilRaw').textContent = data.soil_raw || '--';
                 

@@ -604,14 +604,14 @@
             const timeLabel = now.toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit', year: '2-digit' }) + ' ' +
                 now.toLocaleTimeString('el-GR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-            // Αν η τελευταία μέτρηση είναι ίδια με τη νέα, μην προσθέτεις (anti-duplicate)
+            // Μόνο αν όλες οι τιμές είναι ίδιες, μην προσθέτεις νέο σημείο
             const lastTemp = chartData.temperature[chartData.temperature.length - 1];
             const lastMoist = chartData.moisture[chartData.moisture.length - 1];
             const lastPress = chartData.pressure[chartData.pressure.length - 1];
             if (
-                lastTemp === data.temperature &&
-                lastMoist === data.soil_moisture &&
-                lastPress === data.pressure
+                lastTemp === Number(data.temperature) &&
+                lastMoist === Number(data.soil_moisture) &&
+                lastPress === Number(data.pressure)
             ) {
                 return;
             }

@@ -148,6 +148,12 @@ header h1 {
     letter-spacing: 2px;
 }
 
+.value-display {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 5px;
+}
+
 .value {
     font-size: 2.8em;
     font-weight: bold;
@@ -159,9 +165,9 @@ header h1 {
 
 .unit {
     color: #64f4ac;
-    font-size: 1.1em;
-    margin-top: 5px;
+    font-size: 1.2em;
     opacity: 0.8;
+    font-weight: normal;
 }
 
 /* Progress Bar - Terminal Style */
@@ -288,12 +294,28 @@ header h1 {
     font-weight: bold;
     padding: 10px 20px;
     border-radius: 5px;
-    border: 2px solid;
+    border: 2px solid #00ff41;
+    background: rgba(0, 255, 65, 0.1);
+    color: #00ff41;
     font-family: 'Courier New', monospace;
     flex: 0 0 auto;
     cursor: default;
     user-select: none;
     pointer-events: none;
+    box-shadow: 0 0 10px rgba(0, 255, 65, 0.2);
+}
+
+.pump-status.on {
+    border-color: #ff0051;
+    background: rgba(255, 0, 81, 0.15);
+    color: #ff0051;
+    box-shadow: 0 0 15px rgba(255, 0, 81, 0.3);
+    animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
 }
 .btn-water-15s {
     font-size: 1.5em;
@@ -317,11 +339,48 @@ header h1 {
 .auto-hint {
     color: #64f4ac;
     font-size: 0.95em;
-    margin: 15px 0;
+    margin: 15px 0 10px 0;
     padding: 10px;
     border: 1px solid #64f4ac;
     border-radius: 5px;
     background: rgba(100, 244, 172, 0.1);
+    display: inline-block;
+}
+
+.threshold-input {
+    width: 60px;
+    padding: 5px 10px;
+    font-size: 1.1em;
+    font-family: 'Courier New', monospace;
+    background: #1a1e3a;
+    border: 2px solid #00ff41;
+    border-radius: 5px;
+    color: #00ff41;
+    text-align: center;
+    margin: 0 5px;
+}
+
+.threshold-unit {
+    color: #64f4ac;
+    font-size: 1em;
+    margin-right: 10px;
+}
+
+.btn-threshold {
+    padding: 5px 15px;
+    font-size: 0.9em;
+    font-family: 'Courier New', monospace;
+    background: rgba(0, 255, 65, 0.1);
+    border: 2px solid #00ff41;
+    border-radius: 5px;
+    color: #00ff41;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-threshold:hover {
+    background: rgba(0, 255, 65, 0.3);
+    box-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
 }
 
 .timer-display {

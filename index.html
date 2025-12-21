@@ -24,8 +24,10 @@
                 <div class="card">
                     <div class="card-content">
                         <h3>Θερμοκρασία</h3>
-                        <p class="value" id="temperature">--</p>
-                        <p class="unit">°C</p>
+                        <div class="value-display">
+                            <span class="value" id="temperature">--</span>
+                            <span class="unit">°C</span>
+                        </div>
                     </div>
                 </div>
 
@@ -33,8 +35,10 @@
                 <div class="card">
                     <div class="card-content">
                         <h3>Πίεση</h3>
-                        <p class="value" id="pressure">--</p>
-                        <p class="unit">hPa</p>
+                        <div class="value-display">
+                            <span class="value" id="pressure">--</span>
+                            <span class="unit">hPa</span>
+                        </div>
                     </div>
                 </div>
 
@@ -42,8 +46,10 @@
                 <div class="card card-large">
                     <div class="card-content">
                         <h3>Υγρασία Χώματος</h3>
-                        <p class="value" id="soilMoisture">--</p>
-                        <p class="unit">%</p>
+                        <div class="value-display">
+                            <span class="value" id="soilMoisture">--</span>
+                            <span class="unit">%</span>
+                        </div>
                         <div class="progress-bar">
                             <div class="progress-fill" id="soilProgress"></div>
                         </div>
@@ -55,8 +61,10 @@
                 <div class="card">
                     <div class="card-content">
                         <h3>Υψόμετρο</h3>
-                        <div class="value-display" id="altitude">--</div>
-                        <span class="unit">m</span>
+                        <div class="value-display">
+                            <span class="value" id="altitude">--</span>
+                            <span class="unit">m</span>
+                        </div>
                     </div>
                 </div>
 
@@ -64,8 +72,10 @@
                 <div class="card">
                     <div class="card-content">
                         <h3>Φωτισμός</h3>
-                        <div class="value-display" id="light">--</div>
-                        <span class="unit">lux</span>
+                        <div class="value-display">
+                            <span class="value" id="light">--</span>
+                            <span class="unit">lux</span>
+                        </div>
                     </div>
                 </div>
 
@@ -93,7 +103,10 @@
                         
                         <!-- Auto Mode Info -->
                         <div id="autoInfo" style="display:none;">
-                            <p class="auto-hint">Αυτόματο πότισμα όταν υγρασία &lt; 30%</p>
+                            <p class="auto-hint">Αυτόματο πότισμα όταν υγρασία &lt;</p>
+                            <input type="number" id="moistureThreshold" value="30" min="0" max="100" class="threshold-input">
+                            <span class="threshold-unit">%</span>
+                            <button class="btn-threshold" onclick="updateThreshold()">Ενημέρωση</button>
                         </div>
                         
                         <p class="timer-display" id="timerDisplay"></p>
@@ -263,10 +276,10 @@
             
             if (pumpState === 1) {
                 pumpStatus.textContent = 'ON';
-                pumpStatus.className = 'pump-status pump-on';
+                pumpStatus.className = 'pump-status on';
             } else {
                 pumpStatus.textContent = 'OFF';
-                pumpStatus.className = 'pump-status pump-off';
+                pumpStatus.className = 'pump-status';
             }
         }
 
@@ -302,6 +315,24 @@
             } catch (error) {
                 console.error('Error triggering watering:', error);
                 alert('Σφάλμα! Δεν μπόρεσε να ξεκινήσει το πότισμα.');
+            }
+        };
+
+        // Update moisture threshold
+        window.updateThreshold = async function() {
+            try {
+                const threshold = parseInt(document.getElementById('moistureThreshold').value);
+                if (threshold < 0 || threshold > 100) {
+                    alert('Η τιμή πρέπει να είναι μεταξύ 0-100%');
+                    return;
+                }
+                const thresholdRef = ref(database, 'greenhouse/controls/moisture_threshold');
+                await set(thresholdRef, threshold);
+                console.log('Threshold updated to:', threshold);
+                alert(`Όριο υγρασίας ενημερώθηκε σε ${threshold}%`);
+            } catch (error) {
+                console.error('Error updating threshold:', error);
+                alert('Σφάλμα! Δεν μπόρεσε να ενημερωθεί το όριο.');
             }
         };
 

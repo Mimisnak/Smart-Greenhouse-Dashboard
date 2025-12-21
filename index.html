@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smart Greenhouse Dashboard</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -116,6 +117,26 @@
                 </div>
             </div>
 
+            <!-- Charts Section -->
+            <div class="charts-section">
+                <h2 class="charts-title">Ιστορικό 24 Ωρών</h2>
+                
+                <div class="chart-container">
+                    <h3 class="chart-title">Υγρασία Εδάφους (%)</h3>
+                    <canvas id="moistureChart"></canvas>
+                </div>
+                
+                <div class="chart-container">
+                    <h3 class="chart-title">Θερμοκρασία (°C)</h3>
+                    <canvas id="temperatureChart"></canvas>
+                </div>
+                
+                <div class="chart-container">
+                    <h3 class="chart-title">Πίεση (hPa)</h3>
+                    <canvas id="pressureChart"></canvas>
+                </div>
+            </div>
+
             <!-- Last Update Info -->
             <div class="info-box">
                 <p>Τελευταία Ενημέρωση: <span id="lastUpdate">--</span></p>
@@ -131,7 +152,7 @@
     <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getDatabase, ref, onValue, set } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+        import { getDatabase, ref, onValue, set, get, update } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
         import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
         // Firebase Configuration
@@ -354,6 +375,198 @@
             }
             document.getElementById('nextUpdate').textContent = countdown;
         }, 1000);
+
+        // ========== CHARTS SETUP ==========
+        
+        // Chart configuration
+        const chartOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: 'hour',
+                        displayFormats: {
+                            hour: 'HH:mm'
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(0, 255, 65, 0.1)'
+                    },
+                    ticks: {
+                        color: '#00ff41'
+                    }
+                },
+                y: {
+                    grid: {
+                        color: 'rgba(0, 255, 65, 0.1)'
+                    },
+                    ticks: {
+                        color: '#00ff41'
+                    }
+                }
+            }
+        };
+
+        // Initialize charts
+        const moistureChart = new Chart(document.getElementById('moistureChart'), {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: 'Υγρασία %',
+                    data: [],
+                    borderColor: '#00ff41',
+                    backgroundColor: 'rgba(0, 255, 65, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                ...chartOptions,
+                scales: {
+                    ...chartOptions.scales,
+                    y: {
+                        ...chartOptions.scales.y,
+                        min: 0,
+                        max: 100
+                    }
+                }
+            }
+        });
+
+        const temperatureChart = new Chart(document.getElementById('temperatureChart'), {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: 'Θερμοκρασία °C',
+                    data: [],
+                    borderColor: '#ff6b9d',
+                    backgroundColor: 'rgba(255, 107, 157, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: chartOptions
+        });
+
+        const pressureChart = new Chart(document.getElementById('pressureChart'), {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: 'Πίεση hPa',
+                    data: [],
+                    borderColor: '#4fc3f7',
+                    backgroundColor: 'rgba(79, 195, 247, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: chartOptions
+        });
+
+        // Load and update chart data
+        const historyRef = ref(database, 'greenhouse/history');
+        onValue(historyRef, (snapshot) => {
+            const data = snapshot.val();
+            
+            console.log('📊 History data received:', data ? Object.keys(data).length + ' records' : 'No data');
+            
+            if (!data) {
+                console.warn('⚠️ No history data available yet. ESP32 needs to run for a while.');
+                return;
+            }
+
+            // Convert millis() timestamps to relative time
+            const timestamps = Object.keys(data).map(t => parseInt(t));
+            const maxTimestamp = Math.max(...timestamps);
+            const currentTime = Date.now();
+            
+            console.log(`📊 Latest timestamp: ${maxTimestamp}, Oldest: ${Math.min(...timestamps)}`);
+
+            // Filter data for last 24 hours of ESP32 runtime (86400000 ms)
+            const twentyFourHours = 24 * 60 * 60 * 1000;
+            const cutoffTime = maxTimestamp - twentyFourHours;
+
+            const moistureData = [];
+            const temperatureData = [];
+            const pressureData = [];
+
+            Object.keys(data).forEach(timestamp => {
+                const time = parseInt(timestamp);
+                if (time >= cutoffTime) {
+                    const record = data[timestamp];
+                    // Convert millis() to relative Date for display
+                    const displayTime = currentTime - (maxTimestamp - time);
+                    
+                    if (record.soil_moisture !== undefined) {
+                        moistureData.push({ x: displayTime, y: record.soil_moisture });
+                    }
+                    if (record.temperature !== undefined) {
+                        temperatureData.push({ x: displayTime, y: record.temperature });
+                    }
+                    if (record.pressure !== undefined) {
+                        pressureData.push({ x: displayTime, y: record.pressure });
+                    }
+                }
+            });
+
+            // Sort by timestamp
+            moistureData.sort((a, b) => a.x - b.x);
+            temperatureData.sort((a, b) => a.x - b.x);
+            pressureData.sort((a, b) => a.x - b.x);
+
+            console.log(`📊 Chart data: Moisture=${moistureData.length}, Temp=${temperatureData.length}, Pressure=${pressureData.length}`);
+
+            // Update charts
+            moistureChart.data.datasets[0].data = moistureData;
+            moistureChart.update('none');
+
+            temperatureChart.data.datasets[0].data = temperatureData;
+            temperatureChart.update('none');
+
+            pressureChart.data.datasets[0].data = pressureData;
+            pressureChart.update('none');
+
+            console.log(`✅ Charts updated successfully!`);
+        });
+
+        // Clean up old data (older than 24 hours) every hour
+        setInterval(async () => {
+            try {
+                const historySnapshot = await get(historyRef);
+                const data = historySnapshot.val();
+                if (!data) return;
+
+                const now = Date.now();
+                const twentyFourHoursAgo = now - (24 * 60 * 60 * 1000);
+
+                let deletedCount = 0;
+                const updates = {};
+
+                Object.keys(data).forEach(timestamp => {
+                    if (parseInt(timestamp) < twentyFourHoursAgo) {
+                        updates[timestamp] = null; // Delete old data
+                        deletedCount++;
+                    }
+                });
+
+                if (deletedCount > 0) {
+                    await update(historyRef, updates);
+                    console.log(`🗑️ Deleted ${deletedCount} old records`);
+                }
+            } catch (error) {
+                console.error('Error cleaning old data:', error);
+            }
+        }, 60 * 60 * 1000); // Every hour
 
         // Initial connection check
         updateConnectionStatus(false);

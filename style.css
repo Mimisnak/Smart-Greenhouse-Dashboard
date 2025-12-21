@@ -483,6 +483,56 @@ footer::before {
     color: #00ff41;
 }
 
+/* ========== CHARTS SECTION ========== */
+.charts-section {
+    margin: 30px 0;
+    padding: 25px;
+    background: linear-gradient(135deg, #1a1e3a 0%, #0d1025 100%);
+    border: 2px solid #00ff41;
+    border-radius: 12px;
+    box-shadow: 0 0 20px rgba(0, 255, 65, 0.2);
+}
+
+.charts-title {
+    color: #00ff41;
+    font-size: 1.8em;
+    text-align: center;
+    margin-bottom: 30px;
+    text-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+    font-family: 'Courier New', monospace;
+}
+
+.charts-title::before {
+    content: '📊 ';
+}
+
+.chart-container {
+    background: #0d1025;
+    border: 2px solid #00ff41;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 25px;
+    box-shadow: 0 4px 15px rgba(0, 255, 65, 0.1);
+    height: 300px;
+}
+
+.chart-container:last-child {
+    margin-bottom: 0;
+}
+
+.chart-title {
+    color: #00ff41;
+    font-size: 1.2em;
+    margin-bottom: 15px;
+    text-shadow: 0 0 5px rgba(0, 255, 65, 0.5);
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+}
+
+.chart-container canvas {
+    max-height: 240px;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     header h1 {
@@ -495,6 +545,14 @@ footer::before {
     
     .card-large {
         grid-column: span 1;
+    }
+
+    .chart-container {
+        height: 250px;
+    }
+
+    .chart-container canvas {
+        max-height: 190px;
     }
     
     .info-box {

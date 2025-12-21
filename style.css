@@ -338,37 +338,52 @@ header h1 {
 
 .auto-hint {
     color: #64f4ac;
-    font-size: 0.95em;
-    margin: 15px 0 10px 0;
-    padding: 10px;
-    border: 1px solid #64f4ac;
-    border-radius: 5px;
-    background: rgba(100, 244, 172, 0.1);
+    font-size: 1em;
+    margin: 0;
+    padding: 0;
     display: inline-block;
 }
 
+.auto-mode-container {
+    margin: 20px 0;
+    padding: 15px;
+    border: 2px solid #64f4ac;
+    border-radius: 8px;
+    background: rgba(100, 244, 172, 0.05);
+}
+
+.threshold-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+}
+
 .threshold-input {
-    width: 60px;
-    padding: 5px 10px;
-    font-size: 1.1em;
+    width: 70px;
+    padding: 8px 12px;
+    font-size: 1.2em;
     font-family: 'Courier New', monospace;
     background: #1a1e3a;
     border: 2px solid #00ff41;
     border-radius: 5px;
     color: #00ff41;
     text-align: center;
-    margin: 0 5px;
+}
+
+.threshold-input:focus {
+    outline: none;
+    box-shadow: 0 0 10px rgba(0, 255, 65, 0.4);
 }
 
 .threshold-unit {
     color: #64f4ac;
-    font-size: 1em;
-    margin-right: 10px;
+    font-size: 1.2em;
 }
 
 .btn-threshold {
-    padding: 5px 15px;
-    font-size: 0.9em;
+    padding: 8px 20px;
+    font-size: 1em;
     font-family: 'Courier New', monospace;
     background: rgba(0, 255, 65, 0.1);
     border: 2px solid #00ff41;
@@ -376,11 +391,13 @@ header h1 {
     color: #00ff41;
     cursor: pointer;
     transition: all 0.3s ease;
+    font-weight: bold;
 }
 
 .btn-threshold:hover {
     background: rgba(0, 255, 65, 0.3);
-    box-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
+    box-shadow: 0 0 15px rgba(0, 255, 65, 0.4);
+    transform: translateY(-2px);
 }
 
 .timer-display {

@@ -102,11 +102,13 @@
                         </div>
                         
                         <!-- Auto Mode Info -->
-                        <div id="autoInfo" style="display:none;">
-                            <p class="auto-hint">Αυτόματο πότισμα όταν υγρασία &lt;</p>
-                            <input type="number" id="moistureThreshold" value="30" min="0" max="100" class="threshold-input">
-                            <span class="threshold-unit">%</span>
-                            <button class="btn-threshold" onclick="updateThreshold()">Ενημέρωση</button>
+                        <div id="autoInfo" style="display:none;" class="auto-mode-container">
+                            <div class="auto-hint">Αυτόματο πότισμα όταν υγρασία &lt;</div>
+                            <div class="threshold-controls">
+                                <input type="number" id="moistureThreshold" value="30" min="0" max="100" class="threshold-input">
+                                <span class="threshold-unit">%</span>
+                                <button class="btn-threshold" onclick="updateThreshold()">Ενημέρωση</button>
+                            </div>
                         </div>
                         
                         <p class="timer-display" id="timerDisplay"></p>

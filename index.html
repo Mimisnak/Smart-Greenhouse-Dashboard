@@ -104,6 +104,7 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getDatabase, ref, onValue, set } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+        import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
         // Firebase Configuration - ΑΛΛΑΞΕ ΜΕ ΤΑ ΔΙΚΑ ΣΟΥ!
         const firebaseConfig = {
@@ -119,10 +120,33 @@
         // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const database = getDatabase(app);
+        const auth = getAuth(app);
 
         // Global state
         let pumpState = 0;
         let countdown = 30;
+        let isAuthenticated = false;
+
+        // Authenticate anonymously
+        signInAnonymously(auth)
+            .then(() => {
+                console.log('✅ Authenticated successfully');
+            })
+            .catch((error) => {
+                console.error('❌ Authentication failed:', error);
+                alert('Σφάλμα σύνδεσης! Παρακαλώ ανανέωσε τη σελίδα.');
+            });
+
+        // Listen to auth state
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                isAuthenticated = true;
+                console.log('🔐 User authenticated:', user.uid);
+            } else {
+                isAuthenticated = false;
+                updateConnectionStatus(false);
+            }
+        });
 
         // Update connection status
         function updateConnectionStatus(connected) {

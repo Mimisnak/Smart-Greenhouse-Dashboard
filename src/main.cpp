@@ -20,14 +20,23 @@
 
 #include <Arduino.h>
 #include <WiFi.h>
-#include <WiFiManager.h>
-#include <Wire.h>
-#include <Adafruit_BMP280.h>
-#include <BH1750.h>
-#include <Adafruit_NeoPixel.h>
+/*
+ *  Smart Greenhouse for ESP32-S3
+ *  Copyright (c) 2025 mimis.dev
+ *  All rights reserved.
+ *
+ *  Developed by mimis.dev
+ *  Hardware: ESP32-S3 DevKitC-1, BMP280, BH1750, Soil Sensor, Relay, RGB LED, BOOT Button
+ *  Features: WiFiManager, Firebase RTDB, Auto-watering, History, Watchdog, Memory Management
+ */
 #include <Firebase_ESP_Client.h>
 #include "addons/TokenHelper.h"
 #include "addons/RTDBHelper.h"
+#include <Wire.h>
+#include <Adafruit_BMP280.h>
+#include <BH1750.h>
+#include <WiFiManager.h>
+#include <Adafruit_NeoPixel.h>
 
 // ========== PIN DEFINITIONS ==========
 #define BMP280_SDA 16
@@ -44,7 +53,7 @@
 #define SOIL_WET_VALUE 1300  // Βρεγμένο χώμα (στο νερό)
 
 // ========== TIMING CONSTANTS ==========
-#define SENSOR_READ_INTERVAL 5000   // 5 seconds
+#define SENSOR_READ_INTERVAL 15000   // 15 seconds (production)
 #define FIREBASE_CHECK_INTERVAL 2000 // 2 seconds
 #define BUTTON_HOLD_TIME 5000        // 5 seconds for WiFi reset
 #define DEBOUNCE_DELAY 50            // 50ms debounce
@@ -63,25 +72,23 @@ FirebaseData fbdo;
 FirebaseAuth auth;
 FirebaseConfig config;
 
-// ========== STATE VARIABLES ==========
+// ========== STATE VARIABLES ========== 
 unsigned long lastSensorRead = 0;
 unsigned long lastFirebaseCheck = 0;
+unsigned long lastHistoryUpload = 0;
+unsigned long lastWiFiCheck = 0;
+unsigned long wifiDisconnectedSince = 0;
 unsigned long buttonPressStart = 0;
 bool buttonPressed = false;
 bool firebaseReady = false;
 bool relayState = false;
-
-// Auto-watering variables
 bool autoWateringEnabled = false;
-int moistureThreshold = 30;  // Default 30%
+int moistureThreshold = 30;
 unsigned long pumpStartTime = 0;
 unsigned long pumpDuration = 0;
 bool pumpTimerActive = false;
 unsigned long lastAutoWatering = 0;
-#define AUTO_WATERING_COOLDOWN 5000  // 5 seconds cooldown for TESTING (change back to 300000 for production!)
-
-// History upload
-unsigned long lastHistoryUpload = 0;
+#define AUTO_WATERING_COOLDOWN 300000  // 5 minutes (production!)
 #define HISTORY_UPLOAD_INTERVAL 30000  // Upload to Firebase history every 30 seconds
 
 // ========== SENSOR DATA STRUCTURE ==========
@@ -114,29 +121,32 @@ void startPumpTimer(unsigned long duration);
 void stopPumpTimer();
 int mapSoilMoisture(int raw);
 void flashRGBLED(uint8_t r, uint8_t g, uint8_t b, int duration);
+void wifiWatchdog();
 
 // ========== SETUP ==========
 void setup() {
-    // CRITICAL: Set relay OFF immediately to prevent unwanted activation during boot
     pinMode(RELAY_PIN, OUTPUT);
-    digitalWrite(RELAY_PIN, LOW);
-    
+    digitalWrite(RELAY_PIN, LOW); // Safety: relay OFF on boot
+    relayState = false;
+
     initializeSerial();
     Serial.println("\n\n========================================");
-    Serial.println("ESP32-S3 Smart Greenhouse System");
+    Serial.println("ESP32-S3 Smart Greenhouse - Production");
     Serial.println("========================================\n");
-    
-    // Initialize RGB LED
+
+    // Power stability: keep WiFi radio always on
+    WiFi.setSleep(false);
+
     rgbLED.begin();
-    rgbLED.setBrightness(50);  // 50/255 brightness
-    rgbLED.setPixelColor(0, rgbLED.Color(0, 0, 255));  // Blue = starting up
+    rgbLED.setBrightness(50);
+    rgbLED.setPixelColor(0, rgbLED.Color(0, 0, 255));
     rgbLED.show();
-    
+
     initializeRelay();
     initializeSensors();
     initializeWiFi();
     initializeFirebase();
-    
+
     Serial.println("\n========================================");
     Serial.println("System Ready - Entering Main Loop");
     Serial.println("========================================\n");
@@ -144,71 +154,56 @@ void setup() {
 
 // ========== MAIN LOOP ==========
 void loop() {
-    unsigned long currentMillis = millis();
-    
-    // Check pump timer FIRST (highest priority)
+    unsigned long now = millis();
+
+    // WiFi Watchdog: restart if disconnected > 1 min
+    wifiWatchdog();
+
+    // Pump timer logic
     if (pumpTimerActive) {
-        unsigned long elapsed = currentMillis - pumpStartTime;
+        unsigned long elapsed = now - pumpStartTime;
         if (elapsed >= pumpDuration) {
             stopPumpTimer();
         } else {
-            // Update remaining time in Firebase every second
             static unsigned long lastTimerUpdate = 0;
-            if (currentMillis - lastTimerUpdate >= 1000) {
-                lastTimerUpdate = currentMillis;
+            if (now - lastTimerUpdate >= 1000) {
+                lastTimerUpdate = now;
                 unsigned long remaining = (pumpDuration - elapsed) / 1000;
                 if (firebaseReady && Firebase.ready()) {
                     Firebase.RTDB.setInt(&fbdo, "/greenhouse/status/pump_timer_remaining", remaining);
                 }
-                Serial.printf("[TIMER] Pump running: %lu seconds remaining\n", remaining);
             }
         }
     }
-    
-    // Read and upload sensors every 5 seconds
-    if (currentMillis - lastSensorRead >= SENSOR_READ_INTERVAL) {
-        lastSensorRead = currentMillis;
+
+    // Sensor read/upload
+    if (now - lastSensorRead >= SENSOR_READ_INTERVAL) {
+        lastSensorRead = now;
         readSensors();
         uploadSensorsToFirebase();
-        
-        // Auto-watering logic with cooldown
+
+        // Auto-watering logic
         if (autoWateringEnabled) {
             if (sensors.soilMoisture < moistureThreshold) {
                 if (!pumpTimerActive) {
-                    // Check if cooldown period has passed (5 minutes)
-                    if (currentMillis - lastAutoWatering >= AUTO_WATERING_COOLDOWN || lastAutoWatering == 0) {
-                        Serial.printf("[AUTO] Soil moisture low (%d%% < %d%%), starting pump for 15 seconds\n", sensors.soilMoisture, moistureThreshold);
+                    if (now - lastAutoWatering >= AUTO_WATERING_COOLDOWN || lastAutoWatering == 0) {
                         startPumpTimer(15000); // 15 seconds
-                        lastAutoWatering = currentMillis;
-                    } else {
-                        unsigned long remainingCooldown = (AUTO_WATERING_COOLDOWN - (currentMillis - lastAutoWatering)) / 1000;
-                        if (remainingCooldown % 30 == 0) { // Print every 30 seconds
-                            Serial.printf("[AUTO] Cooldown active, next watering in %lu seconds\n", remainingCooldown);
-                        }
+                        lastAutoWatering = now;
                     }
-                } else {
-                    Serial.println("[AUTO] Pump timer already active, skipping");
-                }
-            } else {
-                static unsigned long lastOkPrint = 0;
-                if (currentMillis - lastOkPrint >= 30000) { // Print every 30 seconds
-                    Serial.printf("[AUTO] Moisture OK (%d%% >= %d%%)\n", sensors.soilMoisture, moistureThreshold);
-                    lastOkPrint = currentMillis;
                 }
             }
         }
     }
-    
-    // Check Firebase commands every 2 seconds
-    if (currentMillis - lastFirebaseCheck >= FIREBASE_CHECK_INTERVAL) {
-        lastFirebaseCheck = currentMillis;
+
+    // Firebase commands
+    if (now - lastFirebaseCheck >= FIREBASE_CHECK_INTERVAL) {
+        lastFirebaseCheck = now;
         checkFirebaseCommands();
     }
-    
-    // Check for WiFi reset button
+
+    // WiFi reset button
     checkButtonForReset();
-    
-    // Small delay for task stability
+
     vTaskDelay(pdMS_TO_TICKS(10));
 }
 
@@ -393,83 +388,28 @@ int mapSoilMoisture(int raw) {
 // ========== FIREBASE FUNCTIONS ==========
 
 void uploadSensorsToFirebase() {
-    if (!firebaseReady || !Firebase.ready()) {
-        Serial.println("[WARN] Firebase not ready, skipping upload");
-        return;
-    }
-    
-    Serial.println("[FIREBASE] Uploading sensor data...");
-    
+    if (!firebaseReady || !Firebase.ready()) return;
     bool success = true;
-    
-    // Upload temperature
-    if (!Firebase.RTDB.setFloat(&fbdo, "/greenhouse/sensors/temperature", sensors.temperature)) {
-        Serial.printf("[ERROR] Temperature upload failed: %s\n", fbdo.errorReason().c_str());
-        success = false;
-    }
-    
-    // Upload pressure
-    if (!Firebase.RTDB.setFloat(&fbdo, "/greenhouse/sensors/pressure", sensors.pressure)) {
-        Serial.printf("[ERROR] Pressure upload failed: %s\n", fbdo.errorReason().c_str());
-        success = false;
-    }
-    
-    // Upload altitude
-    if (!Firebase.RTDB.setFloat(&fbdo, "/greenhouse/sensors/altitude", sensors.altitude)) {
-        Serial.printf("[ERROR] Altitude upload failed: %s\n", fbdo.errorReason().c_str());
-        success = false;
-    }
-    
-    // Upload light level
-    if (!Firebase.RTDB.setInt(&fbdo, "/greenhouse/sensors/light", sensors.lightLevel)) {
-        Serial.printf("[ERROR] Light upload failed: %s\n", fbdo.errorReason().c_str());
-        success = false;
-    }
-    
-    // Upload soil moisture percentage
-    if (!Firebase.RTDB.setInt(&fbdo, "/greenhouse/sensors/soil_moisture", sensors.soilMoisture)) {
-        Serial.printf("[ERROR] Soil moisture upload failed: %s\n", fbdo.errorReason().c_str());
-        success = false;
-    }
-    
-    // Upload soil raw value for debugging
-    if (!Firebase.RTDB.setInt(&fbdo, "/greenhouse/sensors/soil_raw", sensors.soilRaw)) {
-        Serial.printf("[ERROR] Soil raw upload failed: %s\n", fbdo.errorReason().c_str());
-        success = false;
-    }
-    
-    // Upload timestamp
-    if (!Firebase.RTDB.setInt(&fbdo, "/greenhouse/sensors/timestamp", millis())) {
-        Serial.printf("[ERROR] Timestamp upload failed: %s\n", fbdo.errorReason().c_str());
-        success = false;
-    }
-    
-    if (success) {
-        Serial.println("[OK] All sensor data uploaded successfully!");
-        // Flash RGB LED blue when uploading data
-        flashRGBLED(0, 0, 255, 200);  // Blue flash for 200ms
-    }
-    
-    // Upload to history every 30 seconds
+    if (!Firebase.RTDB.setFloat(&fbdo, "/greenhouse/sensors/temperature", sensors.temperature)) success = false;
+    if (!Firebase.RTDB.setFloat(&fbdo, "/greenhouse/sensors/pressure", sensors.pressure)) success = false;
+    if (!Firebase.RTDB.setFloat(&fbdo, "/greenhouse/sensors/altitude", sensors.altitude)) success = false;
+    if (!Firebase.RTDB.setInt(&fbdo, "/greenhouse/sensors/light", sensors.lightLevel)) success = false;
+    if (!Firebase.RTDB.setInt(&fbdo, "/greenhouse/sensors/soil_moisture", sensors.soilMoisture)) success = false;
+    if (!Firebase.RTDB.setInt(&fbdo, "/greenhouse/sensors/soil_raw", sensors.soilRaw)) success = false;
+    if (!Firebase.RTDB.setInt(&fbdo, "/greenhouse/sensors/timestamp", millis())) success = false;
+
+    // History upload every 30s
     if (millis() - lastHistoryUpload >= HISTORY_UPLOAD_INTERVAL) {
         lastHistoryUpload = millis();
-        
-        // Use Firebase push() to create unique key with server timestamp
         String historyPath = "/greenhouse/history";
-        
         FirebaseJson json;
         json.set("soil_moisture", sensors.soilMoisture);
         json.set("temperature", sensors.temperature);
         json.set("light", sensors.lightLevel);
-        json.set(".sv", "timestamp");  // Firebase server timestamp
-        
-        if (Firebase.RTDB.pushJSON(&fbdo, historyPath, &json)) {
-            Serial.println("[HISTORY] Data saved to Firebase with server timestamp");
-            flashRGBLED(0, 0, 255, 200);  // Blue flash for 200ms
-        } else {
-            Serial.printf("[ERROR] History upload failed: %s\n", fbdo.errorReason().c_str());
-        }
+        json.set(".sv", "timestamp");
+        Firebase.RTDB.pushJSON(&fbdo, historyPath, &json);
     }
+    fbdo.clear(); // CRITICAL: free SSL/JSON memory
 }
 
 // Check Firebase for remote commands
@@ -611,4 +551,21 @@ void flashRGBLED(uint8_t r, uint8_t g, uint8_t b, int duration) {
     rgbLED.show();
 }
 
-// ========== MAIN LOOP ==========
+// ========== WIFI WATCHDOG ==========
+void wifiWatchdog() {
+    unsigned long now = millis();
+    static bool wasConnected = true;
+    if (WiFi.status() != WL_CONNECTED) {
+        if (wasConnected) {
+            wifiDisconnectedSince = now;
+            wasConnected = false;
+        } else if (now - wifiDisconnectedSince > 60000) {
+            Serial.println("[WATCHDOG] WiFi lost for >1min, restarting ESP32...");
+            delay(100);
+            ESP.restart();
+        }
+    } else {
+        wasConnected = true;
+        wifiDisconnectedSince = now;
+    }
+}

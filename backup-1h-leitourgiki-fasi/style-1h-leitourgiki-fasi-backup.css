@@ -1,0 +1,22 @@
+/* Reset & Base Styles */
+* {
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+}
+
+body {
+	font-family: 'Courier New', 'Monaco', monospace;
+	background: #0a0e27;
+	color: #00ff41;
+	min-height: 100vh;
+	padding: 20px;
+	line-height: 1.6;
+}
+
+.container {
+	max-width: 1400px;
+	margin: 0 auto;
+}
+
+/* ...existing code... */

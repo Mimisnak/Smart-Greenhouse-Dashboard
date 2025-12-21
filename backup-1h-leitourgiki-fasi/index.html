@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Smart Greenhouse Dashboard</title>
+	<link rel="stylesheet" href="style.css">
+	<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+</head>
+<body>
+	<div class="container">
+		<header>
+			<h1>Smart Greenhouse</h1>
+			<p class="subtitle">Real-time Monitoring & Control</p>
+		</header>
+
+		<main>
+			<!-- Sensor Cards -->
+			<div class="cards-grid">
+				<!-- Temperature Card -->
+				<div class="card">
+					<div class="card-content">
+						<h3>Θερμοκρασία</h3>
+						<div class="value-display">
+							<span class="value" id="temperature">--</span>
+							<span class="unit">°C</span>
+						</div>
+					</div>
+				</div>
+
+				<!-- Pressure Card -->
+				<div class="card">
+					<div class="card-content">
+						<h3>Πίεση</h3>
+						<div class="value-display">
+							<span class="value" id="pressure">--</span>
+							<span class="unit">hPa</span>
+						</div>
+					</div>
+				</div>
+
+				<!-- Soil Moisture Card -->
+				<div class="card card-large">
+					<div class="card-content">
+						<h3>Υγρασία Χώματος</h3>
+						<div class="value-display">
+							<span class="value" id="soilMoisture">--</span>
+							<span class="unit">%</span>
+						</div>
+						<div class="progress-bar">
+							<div class="progress-fill" id="soilProgress"></div>
+						</div>
+						<p class="raw-value">Raw: <span id="soilRaw">--</span></p>
+					</div>
+				</div>
+
+				<!-- Altitude Card -->
+				<div class="card">
+					<div class="card-content">
+						<h3>Υψόμετρο</h3>
+						<div class="value-display">
+							<span class="value" id="altitude">--</span>
+							<span class="unit">m</span>
+						</div>
+					</div>
+				</div>
+
+				<!-- Light Sensor Card -->
+				<div class="card">
+					<div class="card-content">
+						<h3>Φωτισμός</h3>
+						<div class="value-display">
+							<span class="value" id="light">--</span>
+							<span class="unit">lux</span>
+						</div>
+					</div>
+				</div>
+
+				<!-- Water Pump Control Card -->
+				<div class="card card-large card-control">
+					<div class="card-content">
+						<h3>Έλεγχος Αντλίας</h3>
+                        
+						<!-- Auto/Manual Mode Toggle -->
+						<div class="mode-toggle">
+							<button class="btn-mode" id="manualBtn" onclick="setMode('manual')">Manual</button>
+							<button class="btn-mode" id="autoBtn" onclick="setMode('auto')">Auto</button>
+						</div>
+                        
+						<div class="status-row">
+							<div class="pump-status" id="pumpStatus">OFF</div>
+                            
+							<!-- Manual Control -->
+							<div id="manualControls">
+								<button class="btn-water-15s" onclick="water15s()">
+									Πότισμα 15s
+								</button>
+							</div>
+						</div>
+                        
+						<!-- Auto Mode Info -->
+						<div id="autoInfo" style="display:none;" class="auto-mode-container">
+							<div class="auto-hint">Αυτόματο πότισμα όταν υγρασία &lt;</div>
+							<div class="threshold-controls">
+								<input type="number" id="moistureThreshold" value="30" min="0" max="100" class="threshold-input">
+								<span class="threshold-unit">%</span>
+								<button class="btn-threshold" onclick="updateThreshold()">Ενημέρωση</button>
+							</div>
+						</div>
+                        
+						<p class="timer-display" id="timerDisplay"></p>
+					</div>
+				</div>
+			</div>
+
+			<!-- Charts Section -->
+			<div class="charts-section">
+				<h2 class="charts-title">Ιστορικό 24 Ωρών</h2>
+                
+				<div class="chart-container">
+					<h3 class="chart-title">Υγρασία Εδάφους (%)</h3>
+					<canvas id="moistureChart"></canvas>
+				</div>
+                
+				<div class="chart-container">
+					<h3 class="chart-title">Θερμοκρασία (°C)</h3>
+					<canvas id="temperatureChart"></canvas>
+				</div>
+                
+				<div class="chart-container">
+					<h3 class="chart-title">Πίεση (hPa)</h3>
+					<canvas id="pressureChart"></canvas>
+				</div>
+			</div>
+
+			<!-- Last Update Info -->
+			<div class="info-box">
+				<p>Τελευταία Ενημέρωση: <span id="lastUpdate">--</span></p>
+				<p>Επόμενη σε: <span id="nextUpdate">30</span>s</p>
+			</div>
+		</main>
+
+		<footer>
+			<p>ESP32-S3 Smart Greenhouse System | Powered by Firebase</p>
+		</footer>
+	</div>
+
+	<!-- Firebase SDK -->
+	<script type="module">
+		// ...existing code (dashboard logic)...
+	</script>
+</body>
+</html>

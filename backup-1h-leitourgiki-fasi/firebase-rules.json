@@ -1,0 +1,33 @@
+{
+	"rules": {
+		"greenhouse": {
+			"sensors": {
+				".read": true,
+				".write": true,
+				".indexOn": ["timestamp"]
+			},
+			"controls": {
+				".read": true,
+				".write": true
+			},
+			"status": {
+				".read": true,
+				".write": true
+			},
+			"system": {
+				".read": true,
+				".write": true
+			},
+			"history": {
+				".read": true,
+				".write": true,
+				"$record": {
+					".validate": "newData.hasChildren(['soil_moisture', 'temperature', 'light', 'timestamp'])",
+					"timestamp": {
+						".validate": "newData.isNumber() && newData.val() <= now + 60000"
+					}
+				}
+			}
+		}
+	}
+}

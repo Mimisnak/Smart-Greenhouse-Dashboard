@@ -398,6 +398,11 @@ void uploadSensorsToFirebase() {
     if (!Firebase.RTDB.setInt(&fbdo, "/greenhouse/sensors/soil_raw", sensors.soilRaw)) success = false;
     if (!Firebase.RTDB.setInt(&fbdo, "/greenhouse/sensors/timestamp", millis())) success = false;
 
+    // Flash RGB LED blue όταν όλα ανέβουν επιτυχώς
+    if (success) {
+        flashRGBLED(0, 0, 255, 200);  // Blue flash για 200ms
+    }
+
     // History upload every 30s
     if (millis() - lastHistoryUpload >= HISTORY_UPLOAD_INTERVAL) {
         lastHistoryUpload = millis();
@@ -408,6 +413,32 @@ void uploadSensorsToFirebase() {
         json.set("light", sensors.lightLevel);
         json.set(".sv", "timestamp");
         Firebase.RTDB.pushJSON(&fbdo, historyPath, &json);
+
+        // --- Automatic cleanup: delete history older than 24h ---
+        unsigned long now = millis();
+        unsigned long cutoff = (Firebase.getCurrentTimestamp() / 1000) - 86400; // 24h ago (in seconds)
+        if (Firebase.RTDB.getJSON(&fbdo, historyPath)) {
+            FirebaseJson& historyJson = fbdo.to<FirebaseJson>();
+            FirebaseJsonData data;
+            historyJson.get(data, "");
+            if (data.type == "object") {
+                FirebaseJson& obj = data.to<FirebaseJson>();
+                std::vector<String> keysToDelete;
+                FirebaseJsonData entry;
+                size_t count = obj.iteratorBegin();
+                for (size_t i = 0; i < count; i++) {
+                    String key = obj.iteratorGetKey(i);
+                    obj.get(entry, key + "/timestamp");
+                    if (entry.type == "int" && entry.intValue < cutoff) {
+                        keysToDelete.push_back(key);
+                    }
+                }
+                obj.iteratorEnd();
+                for (const auto& key : keysToDelete) {
+                    Firebase.RTDB.deleteNode(&fbdo, historyPath + "/" + key);
+                }
+            }
+        }
     }
     fbdo.clear(); // CRITICAL: free SSL/JSON memory
 }

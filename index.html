@@ -617,9 +617,9 @@
             }
 
             chartData.labels.push(timeLabel);
-            chartData.moisture.push(data.soil_moisture || 0);
-            chartData.temperature.push(data.temperature || 0);
-            chartData.pressure.push(data.pressure || 0);
+            chartData.moisture.push(Number(data.soil_moisture) || 0);
+            chartData.temperature.push(Number(data.temperature) || 0);
+            chartData.pressure.push(Number(data.pressure) || 0);
 
             // Remove old data if exceeds max
             if (chartData.labels.length > maxDataPoints) {

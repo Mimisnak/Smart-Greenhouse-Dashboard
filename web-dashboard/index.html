@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smart Greenhouse Dashboard</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -24,8 +25,10 @@
                 <div class="card">
                     <div class="card-content">
                         <h3>Θερμοκρασία</h3>
-                        <p class="value" id="temperature">--</p>
-                        <p class="unit">°C</p>
+                        <div class="value-display">
+                            <span class="value" id="temperature">--</span>
+                            <span class="unit">°C</span>
+                        </div>
                     </div>
                 </div>
 
@@ -33,8 +36,10 @@
                 <div class="card">
                     <div class="card-content">
                         <h3>Πίεση</h3>
-                        <p class="value" id="pressure">--</p>
-                        <p class="unit">hPa</p>
+                        <div class="value-display">
+                            <span class="value" id="pressure">--</span>
+                            <span class="unit">hPa</span>
+                        </div>
                     </div>
                 </div>
 
@@ -42,8 +47,10 @@
                 <div class="card card-large">
                     <div class="card-content">
                         <h3>Υγρασία Χώματος</h3>
-                        <p class="value" id="soilMoisture">--</p>
-                        <p class="unit">%</p>
+                        <div class="value-display">
+                            <span class="value" id="soilMoisture">--</span>
+                            <span class="unit">%</span>
+                        </div>
                         <div class="progress-bar">
                             <div class="progress-fill" id="soilProgress"></div>
                         </div>
@@ -55,8 +62,10 @@
                 <div class="card">
                     <div class="card-content">
                         <h3>Υψόμετρο</h3>
-                        <div class="value-display" id="altitude">--</div>
-                        <span class="unit">m</span>
+                        <div class="value-display">
+                            <span class="value" id="altitude">--</span>
+                            <span class="unit">m</span>
+                        </div>
                     </div>
                 </div>
 
@@ -64,8 +73,10 @@
                 <div class="card">
                     <div class="card-content">
                         <h3>Φωτισμός</h3>
-                        <div class="value-display" id="light">--</div>
-                        <span class="unit">lux</span>
+                        <div class="value-display">
+                            <span class="value" id="light">--</span>
+                            <span class="unit">lux</span>
+                        </div>
                     </div>
                 </div>
 
@@ -80,22 +91,49 @@
                             <button class="btn-mode" id="autoBtn" onclick="setMode('auto')">Auto</button>
                         </div>
                         
-                        <div class="pump-status" id="pumpStatus">OFF</div>
-                        
-                        <!-- Manual Control -->
-                        <div id="manualControls">
-                            <button class="btn-pump btn-water-15s" onclick="water15s()">
-                                Πότισμα 15s
-                            </button>
+                        <div class="status-row">
+                            <div class="pump-status" id="pumpStatus">OFF</div>
+                            
+                            <!-- Manual Control -->
+                            <div id="manualControls">
+                                <button class="btn-water-15s" onclick="water15s()">
+                                    Πότισμα 15s
+                                </button>
+                            </div>
                         </div>
                         
                         <!-- Auto Mode Info -->
-                        <div id="autoInfo" style="display:none;">
-                            <p class="auto-hint">Αυτόματο πότισμα όταν υγρασία &lt; 30%</p>
+                        <div id="autoInfo" style="display:none;" class="auto-mode-container">
+                            <div class="auto-hint">Αυτόματο πότισμα όταν υγρασία &lt;</div>
+                            <div class="threshold-controls">
+                                <input type="number" id="moistureThreshold" value="30" min="0" max="100" class="threshold-input">
+                                <span class="threshold-unit">%</span>
+                                <button class="btn-threshold" onclick="updateThreshold()">Ενημέρωση</button>
+                            </div>
                         </div>
                         
                         <p class="timer-display" id="timerDisplay"></p>
                     </div>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="charts-section">
+                <h2 class="charts-title">Ιστορικό 24 Ωρών</h2>
+                
+                <div class="chart-container">
+                    <h3 class="chart-title">Υγρασία Εδάφους (%)</h3>
+                    <canvas id="moistureChart"></canvas>
+                </div>
+                
+                <div class="chart-container">
+                    <h3 class="chart-title">Θερμοκρασία (°C)</h3>
+                    <canvas id="temperatureChart"></canvas>
+                </div>
+                
+                <div class="chart-container">
+                    <h3 class="chart-title">Πίεση (hPa)</h3>
+                    <canvas id="pressureChart"></canvas>
                 </div>
             </div>
 
@@ -114,7 +152,7 @@
     <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getDatabase, ref, onValue, set } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+        import { getDatabase, ref, onValue, set, get, update } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
         import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
         // Firebase Configuration
@@ -221,6 +259,14 @@
             updateModeUI();
         });
 
+        // Listen to moisture threshold
+        const thresholdRef = ref(database, 'greenhouse/controls/moisture_threshold');
+        onValue(thresholdRef, (snapshot) => {
+            const threshold = snapshot.val() || 30;
+            document.getElementById('moistureThreshold').value = threshold;
+            console.log('Threshold loaded:', threshold);
+        });
+
         // Listen to pump status
         const statusRef = ref(database, 'greenhouse/status/relay_state');
         onValue(statusRef, (snapshot) => {
@@ -261,10 +307,10 @@
             
             if (pumpState === 1) {
                 pumpStatus.textContent = 'ON';
-                pumpStatus.className = 'pump-status pump-on';
+                pumpStatus.className = 'pump-status on';
             } else {
                 pumpStatus.textContent = 'OFF';
-                pumpStatus.className = 'pump-status pump-off';
+                pumpStatus.className = 'pump-status';
             }
         }
 
@@ -303,6 +349,24 @@
             }
         };
 
+        // Update moisture threshold
+        window.updateThreshold = async function() {
+            try {
+                const threshold = parseInt(document.getElementById('moistureThreshold').value);
+                if (threshold < 0 || threshold > 100) {
+                    alert('Η τιμή πρέπει να είναι μεταξύ 0-100%');
+                    return;
+                }
+                const thresholdRef = ref(database, 'greenhouse/controls/moisture_threshold');
+                await set(thresholdRef, threshold);
+                console.log('Threshold updated to:', threshold);
+                alert(`Όριο υγρασίας ενημερώθηκε σε ${threshold}%`);
+            } catch (error) {
+                console.error('Error updating threshold:', error);
+                alert('Σφάλμα! Δεν μπόρεσε να ενημερωθεί το όριο.');
+            }
+        };
+
         // Countdown timer
         setInterval(() => {
             countdown--;
@@ -311,6 +375,182 @@
             }
             document.getElementById('nextUpdate').textContent = countdown;
         }, 1000);
+
+        // ========== CHARTS SETUP ==========
+        
+        // Chart configuration
+        const chartOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: 'hour',
+                        displayFormats: {
+                            hour: 'HH:mm'
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(0, 255, 65, 0.1)'
+                    },
+                    ticks: {
+                        color: '#00ff41'
+                    }
+                },
+                y: {
+                    grid: {
+                        color: 'rgba(0, 255, 65, 0.1)'
+                    },
+                    ticks: {
+                        color: '#00ff41'
+                    }
+                }
+            }
+        };
+
+        // Initialize charts
+        const moistureChart = new Chart(document.getElementById('moistureChart'), {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: 'Υγρασία %',
+                    data: [],
+                    borderColor: '#00ff41',
+                    backgroundColor: 'rgba(0, 255, 65, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                ...chartOptions,
+                scales: {
+                    ...chartOptions.scales,
+                    y: {
+                        ...chartOptions.scales.y,
+                        min: 0,
+                        max: 100
+                    }
+                }
+            }
+        });
+
+        const temperatureChart = new Chart(document.getElementById('temperatureChart'), {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: 'Θερμοκρασία °C',
+                    data: [],
+                    borderColor: '#ff6b9d',
+                    backgroundColor: 'rgba(255, 107, 157, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: chartOptions
+        });
+
+        const pressureChart = new Chart(document.getElementById('pressureChart'), {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: 'Πίεση hPa',
+                    data: [],
+                    borderColor: '#4fc3f7',
+                    backgroundColor: 'rgba(79, 195, 247, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: chartOptions
+        });
+
+        // Load and update chart data
+        const historyRef = ref(database, 'greenhouse/history');
+        onValue(historyRef, (snapshot) => {
+            const data = snapshot.val();
+            if (!data) return;
+
+            // Get current time and 24 hours ago
+            const now = Date.now();
+            const twentyFourHoursAgo = now - (24 * 60 * 60 * 1000);
+
+            // Filter data for last 24 hours
+            const moistureData = [];
+            const temperatureData = [];
+            const pressureData = [];
+
+            Object.keys(data).forEach(timestamp => {
+                const time = parseInt(timestamp);
+                if (time >= twentyFourHoursAgo) {
+                    const record = data[timestamp];
+                    
+                    if (record.soil_moisture !== undefined) {
+                        moistureData.push({ x: time, y: record.soil_moisture });
+                    }
+                    if (record.temperature !== undefined) {
+                        temperatureData.push({ x: time, y: record.temperature });
+                    }
+                    if (record.pressure !== undefined) {
+                        pressureData.push({ x: time, y: record.pressure });
+                    }
+                }
+            });
+
+            // Sort by timestamp
+            moistureData.sort((a, b) => a.x - b.x);
+            temperatureData.sort((a, b) => a.x - b.x);
+            pressureData.sort((a, b) => a.x - b.x);
+
+            // Update charts
+            moistureChart.data.datasets[0].data = moistureData;
+            moistureChart.update('none');
+
+            temperatureChart.data.datasets[0].data = temperatureData;
+            temperatureChart.update('none');
+
+            pressureChart.data.datasets[0].data = pressureData;
+            pressureChart.update('none');
+
+            console.log(`📊 Charts updated: ${moistureData.length} data points`);
+        });
+
+        // Clean up old data (older than 24 hours) every hour
+        setInterval(async () => {
+            try {
+                const historySnapshot = await get(historyRef);
+                const data = historySnapshot.val();
+                if (!data) return;
+
+                const now = Date.now();
+                const twentyFourHoursAgo = now - (24 * 60 * 60 * 1000);
+
+                let deletedCount = 0;
+                const updates = {};
+
+                Object.keys(data).forEach(timestamp => {
+                    if (parseInt(timestamp) < twentyFourHoursAgo) {
+                        updates[timestamp] = null; // Delete old data
+                        deletedCount++;
+                    }
+                });
+
+                if (deletedCount > 0) {
+                    await update(historyRef, updates);
+                    console.log(`🗑️ Deleted ${deletedCount} old records`);
+                }
+            } catch (error) {
+                console.error('Error cleaning old data:', error);
+            }
+        }, 60 * 60 * 1000); // Every hour
 
         // Initial connection check
         updateConnectionStatus(false);

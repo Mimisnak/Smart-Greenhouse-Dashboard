@@ -148,6 +148,12 @@ header h1 {
     letter-spacing: 2px;
 }
 
+.value-display {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 5px;
+}
+
 .value {
     font-size: 2.8em;
     font-weight: bold;
@@ -159,9 +165,9 @@ header h1 {
 
 .unit {
     color: #64f4ac;
-    font-size: 1.1em;
-    margin-top: 5px;
+    font-size: 1.2em;
     opacity: 0.8;
+    font-weight: normal;
 }
 
 /* Progress Bar - Terminal Style */
@@ -270,20 +276,58 @@ header h1 {
     box-shadow: 0 0 15px rgba(0, 255, 65, 0.4);
 }
 
+/* Status Row - OFF and Button side by side */
+.status-row {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin: 15px 0;
+    flex-wrap: wrap;
+}
+
+#manualControls {
+    flex: 0 0 auto;
+}
+
 .pump-status {
     font-size: 2em;
     font-weight: bold;
-    margin: 15px 0;
     padding: 10px 20px;
     border-radius: 5px;
-    display: inline-block;
-    border: 2px solid;
-    font-family: 'Courier New', monospace;
-}
-water-15s {
+    border: 2px solid #00ff41;
     background: rgba(0, 255, 65, 0.1);
     color: #00ff41;
-    border-color: #00ff41;
+    font-family: 'Courier New', monospace;
+    flex: 0 0 auto;
+    cursor: default;
+    user-select: none;
+    pointer-events: none;
+    box-shadow: 0 0 10px rgba(0, 255, 65, 0.2);
+}
+
+.pump-status.on {
+    border-color: #ff0051;
+    background: rgba(255, 0, 81, 0.15);
+    color: #ff0051;
+    box-shadow: 0 0 15px rgba(255, 0, 81, 0.3);
+    animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+.btn-water-15s {
+    font-size: 1.5em;
+    font-weight: bold;
+    padding: 10px 20px;
+    border-radius: 5px;
+    border: 2px solid #00ff41;
+    background: rgba(0, 255, 65, 0.1);
+    color: #00ff41;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: 'Courier New', monospace;
 }
 
 .btn-water-15s:hover {
@@ -294,12 +338,66 @@ water-15s {
 
 .auto-hint {
     color: #64f4ac;
-    font-size: 0.95em;
-    margin: 15px 0;
-    padding: 10px;
-    border: 1px solid #64f4ac;
+    font-size: 1em;
+    margin: 0;
+    padding: 0;
+    display: inline-block;
+}
+
+.auto-mode-container {
+    margin: 20px 0;
+    padding: 15px;
+    border: 2px solid #64f4ac;
+    border-radius: 8px;
+    background: rgba(100, 244, 172, 0.05);
+}
+
+.threshold-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.threshold-input {
+    width: 70px;
+    padding: 8px 12px;
+    font-size: 1.2em;
+    font-family: 'Courier New', monospace;
+    background: #1a1e3a;
+    border: 2px solid #00ff41;
     border-radius: 5px;
-    background: rgba(100, 244, 172, 0.1);
+    color: #00ff41;
+    text-align: center;
+}
+
+.threshold-input:focus {
+    outline: none;
+    box-shadow: 0 0 10px rgba(0, 255, 65, 0.4);
+}
+
+.threshold-unit {
+    color: #64f4ac;
+    font-size: 1.2em;
+}
+
+.btn-threshold {
+    padding: 8px 20px;
+    font-size: 1em;
+    font-family: 'Courier New', monospace;
+    background: rgba(0, 255, 65, 0.1);
+    border: 2px solid #00ff41;
+    border-radius: 5px;
+    color: #00ff41;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: bold;
+}
+
+.btn-threshold:hover {
+    background: rgba(0, 255, 65, 0.3);
+    box-shadow: 0 0 15px rgba(0, 255, 65, 0.4);
+    transform: translateY(-2px);
 }
 
 .timer-display {
@@ -308,7 +406,8 @@ water-15s {
     font-weight: bold;
     margin-top: 10px;
     text-align: center;
-    display: none
+    display: none;
+}
 
 .btn-pump-off {
     background: rgba(0, 255, 65, 0.1);
@@ -384,6 +483,56 @@ footer::before {
     color: #00ff41;
 }
 
+/* ========== CHARTS SECTION ========== */
+.charts-section {
+    margin: 30px 0;
+    padding: 25px;
+    background: linear-gradient(135deg, #1a1e3a 0%, #0d1025 100%);
+    border: 2px solid #00ff41;
+    border-radius: 12px;
+    box-shadow: 0 0 20px rgba(0, 255, 65, 0.2);
+}
+
+.charts-title {
+    color: #00ff41;
+    font-size: 1.8em;
+    text-align: center;
+    margin-bottom: 30px;
+    text-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+    font-family: 'Courier New', monospace;
+}
+
+.charts-title::before {
+    content: '📊 ';
+}
+
+.chart-container {
+    background: #0d1025;
+    border: 2px solid #00ff41;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 25px;
+    box-shadow: 0 4px 15px rgba(0, 255, 65, 0.1);
+    height: 300px;
+}
+
+.chart-container:last-child {
+    margin-bottom: 0;
+}
+
+.chart-title {
+    color: #00ff41;
+    font-size: 1.2em;
+    margin-bottom: 15px;
+    text-shadow: 0 0 5px rgba(0, 255, 65, 0.5);
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+}
+
+.chart-container canvas {
+    max-height: 240px;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     header h1 {
@@ -396,6 +545,14 @@ footer::before {
     
     .card-large {
         grid-column: span 1;
+    }
+
+    .chart-container {
+        height: 250px;
+    }
+
+    .chart-container canvas {
+        max-height: 190px;
     }
     
     .info-box {

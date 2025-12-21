@@ -24,6 +24,7 @@
 #include <Wire.h>
 #include <Adafruit_BMP280.h>
 #include <BH1750.h>
+#include <Adafruit_NeoPixel.h>
 #include <Firebase_ESP_Client.h>
 #include "addons/TokenHelper.h"
 #include "addons/RTDBHelper.h"
@@ -36,6 +37,7 @@
 #define SOIL_SENSOR_PIN 4
 #define RELAY_PIN 5
 #define BOOT_BUTTON_PIN 0
+#define RGB_LED_PIN 48  // WS2812 RGB LED on ESP32-S3 DevKitC-1
 
 // ========== SENSOR CALIBRATION ==========
 #define SOIL_DRY_VALUE 3285  // Ξηρό (στον αέρα/ξύλο) - Βασισμένο στις μετρήσεις
@@ -94,6 +96,9 @@ struct SensorData {
 
 SensorData sensors;
 
+// ========== RGB LED ==========
+Adafruit_NeoPixel rgbLED(1, RGB_LED_PIN, NEO_GRB + NEO_KHZ800);
+
 // ========== FUNCTION PROTOTYPES ==========
 void initializeSerial();
 void initializeSensors();
@@ -108,6 +113,7 @@ void checkButtonForReset();
 void startPumpTimer(unsigned long duration);
 void stopPumpTimer();
 int mapSoilMoisture(int raw);
+void flashRGBLED(uint8_t r, uint8_t g, uint8_t b, int duration);
 
 // ========== SETUP ==========
 void setup() {
@@ -119,6 +125,12 @@ void setup() {
     Serial.println("\n\n========================================");
     Serial.println("ESP32-S3 Smart Greenhouse System");
     Serial.println("========================================\n");
+    
+    // Initialize RGB LED
+    rgbLED.begin();
+    rgbLED.setBrightness(50);  // 50/255 brightness
+    rgbLED.setPixelColor(0, rgbLED.Color(0, 0, 255));  // Blue = starting up
+    rgbLED.show();
     
     initializeRelay();
     initializeSensors();
@@ -274,6 +286,10 @@ void initializeWiFi() {
     Serial.print("[INFO] Signal Strength: ");
     Serial.print(WiFi.RSSI());
     Serial.println(" dBm\n");
+    
+    // Set RGB LED to green when WiFi connected
+    rgbLED.setPixelColor(0, rgbLED.Color(0, 255, 0));  // Green
+    rgbLED.show();
 }
 
 void initializeFirebase() {
@@ -430,6 +446,8 @@ void uploadSensorsToFirebase() {
     
     if (success) {
         Serial.println("[OK] All sensor data uploaded successfully!");
+        // Flash RGB LED yellow when uploading data
+        flashRGBLED(255, 150, 0, 200);  // Orange/yellow flash for 200ms
     }
     
     // Upload to history every 30 seconds
@@ -443,6 +461,8 @@ void uploadSensorsToFirebase() {
         Firebase.RTDB.setInt(&fbdo, historyPath + "/timestamp", millis());
         
         Serial.println("[HISTORY] Data saved to Firebase");
+        // Flash RGB LED cyan when uploading history
+        flashRGBLED(0, 255, 255, 200);  // Cyan flash for 200ms
     }
 }
 
@@ -573,6 +593,16 @@ void stopPumpTimer() {
     if (firebaseReady && Firebase.ready()) {
         Firebase.RTDB.setInt(&fbdo, "/greenhouse/status/pump_timer_remaining", 0);
     }
+}
+
+// ========== RGB LED FUNCTIONS ==========
+
+void flashRGBLED(uint8_t r, uint8_t g, uint8_t b, int duration) {
+    rgbLED.setPixelColor(0, rgbLED.Color(r, g, b));
+    rgbLED.show();
+    delay(duration);
+    rgbLED.setPixelColor(0, rgbLED.Color(0, 255, 0));  // Back to green (normal)
+    rgbLED.show();
 }
 
 // ========== MAIN LOOP ==========

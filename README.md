@@ -1,4 +1,4 @@
-# 🌱 Smart Greenhouse Dashboard & ESP32 Firmware
+#  Smart Greenhouse Dashboard & ESP32 Firmware
 
 ## Περιγραφή
 Έξυπνο θερμοκήπιο με ESP32-S3, αισθητήρες, Firebase και web dashboard για παρακολούθηση και αυτόματο πότισμα.

@@ -173,12 +173,12 @@
                 document.getElementById('pressure').textContent = data.pressure ? data.pressure.toFixed(1) : '--';
                 document.getElementById('altitude').textContent = data.altitude ? data.altitude.toFixed(1) : '--';
                 document.getElementById('light').textContent = data.light || '--';
-                document.getElementById('soilMoisture').textContent = data.soil_moisture || '--';
+                document.getElementById('soilMoisture').textContent = (data.soil_moisture !== undefined && data.soil_moisture !== null) ? data.soil_moisture : '--';
                 document.getElementById('soilRaw').textContent = data.soil_raw || '--';
                 
                 // Update soil moisture progress bar
                 const soilProgress = document.getElementById('soilProgress');
-                const moisture = data.soil_moisture || 0;
+                const moisture = (data.soil_moisture !== undefined && data.soil_moisture !== null) ? data.soil_moisture : 0;
                 soilProgress.style.width = moisture + '%';
                 
                 // Color based on moisture level

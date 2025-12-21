@@ -453,16 +453,22 @@ void uploadSensorsToFirebase() {
     // Upload to history every 30 seconds
     if (millis() - lastHistoryUpload >= HISTORY_UPLOAD_INTERVAL) {
         lastHistoryUpload = millis();
-        String historyPath = "/greenhouse/history/" + String(millis());
         
-        Firebase.RTDB.setInt(&fbdo, historyPath + "/moisture", sensors.soilMoisture);
-        Firebase.RTDB.setFloat(&fbdo, historyPath + "/temperature", sensors.temperature);
-        Firebase.RTDB.setFloat(&fbdo, historyPath + "/pressure", sensors.pressure);
-        Firebase.RTDB.setInt(&fbdo, historyPath + "/timestamp", millis());
+        // Use Firebase push() to create unique key with server timestamp
+        String historyPath = "/greenhouse/history";
         
-        Serial.println("[HISTORY] Data saved to Firebase");
-        // Flash RGB LED blue when uploading history
-        flashRGBLED(0, 0, 255, 200);  // Blue flash for 200ms
+        FirebaseJson json;
+        json.set("soil_moisture", sensors.soilMoisture);
+        json.set("temperature", sensors.temperature);
+        json.set("light", sensors.lightLevel);
+        json.set(".sv", "timestamp");  // Firebase server timestamp
+        
+        if (Firebase.RTDB.pushJSON(&fbdo, historyPath, &json)) {
+            Serial.println("[HISTORY] Data saved to Firebase with server timestamp");
+            flashRGBLED(0, 0, 255, 200);  // Blue flash for 200ms
+        } else {
+            Serial.printf("[ERROR] History upload failed: %s\n", fbdo.errorReason().c_str());
+        }
     }
 }
 

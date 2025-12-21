@@ -68,7 +68,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-        import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+        import { getDatabase, ref, onValue, set, query, orderByChild, limitToLast } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDwwszw4AapfTp_dkdli48vsxOZXkZwqfo",
@@ -89,27 +89,61 @@
             type: 'line',
             data: {
                 datasets: [
-                    { label: 'Temp (°C)', borderColor: '#00ff41', data: [], tension: 0.4 },
-                    { label: 'Soil (%)', borderColor: '#00ccff', data: [], tension: 0.4 }
+                    { label: 'Temp (°C)', borderColor: '#00ff41', data: [], tension: 0.4, pointRadius: 2 },
+                    { label: 'Soil (%)', borderColor: '#00ccff', data: [], tension: 0.4, pointRadius: 2 }
                 ]
             },
             options: {
                 responsive: true, maintainAspectRatio: false, animation: false,
                 scales: {
-                    x: { type: 'time', time: { unit: 'second' }, grid: { color: '#222' } },
-                    y: { grid: { color: '#222' } }
+                    x: { 
+                        type: 'time', 
+                        time: { unit: 'minute', displayFormats: { minute: 'HH:mm' } },
+                        grid: { color: '#222' },
+                        ticks: { color: '#888' }
+                    },
+                    y: { 
+                        grid: { color: '#222' },
+                        ticks: { color: '#888' }
+                    }
+                },
+                plugins: {
+                    legend: { labels: { color: '#e0e0e0' } }
                 }
             }
         });
 
-        // --- READ DATA ---
+        // --- LOAD HISTORY FROM FIREBASE ---
+        const historyRef = query(ref(db, 'greenhouse/history'), orderByChild('timestamp'), limitToLast(100));
+        onValue(historyRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                // Clear existing data
+                myChart.data.datasets[0].data = [];
+                myChart.data.datasets[1].data = [];
+                
+                // Add all history points
+                Object.values(data).forEach(record => {
+                    if (record.timestamp && record.temperature !== undefined) {
+                        myChart.data.datasets[0].data.push({x: record.timestamp, y: record.temperature});
+                    }
+                    if (record.timestamp && record.soil_moisture !== undefined) {
+                        myChart.data.datasets[1].data.push({x: record.timestamp, y: record.soil_moisture});
+                    }
+                });
+                
+                myChart.update();
+                console.log('[CHART] Loaded history:', Object.keys(data).length, 'records');
+            }
+        });
+
+        // --- READ LIVE DATA ---
         const sensorsRef = ref(db, 'greenhouse/sensors');
         onValue(sensorsRef, (snapshot) => {
             const data = snapshot.val();
             document.getElementById('status').innerText = "ONLINE ✓";
 
             if (data) {
-                // Διόρθωση ονομάτων: Το ESP στέλνει soil_moisture, όχι soil!
                 const t = data.temperature ? data.temperature.toFixed(1) : "--";
                 const s = data.soil_moisture !== undefined ? data.soil_moisture : "--";
                 const l = data.light !== undefined ? data.light : "--";
@@ -117,18 +151,6 @@
                 document.getElementById('temp').innerText = t;
                 document.getElementById('soil').innerText = s;
                 document.getElementById('light').innerText = l;
-
-                // Ενημέρωση Γραφήματος
-                const now = Date.now();
-                if (myChart.data.datasets[0].data.length > 50) { // Κράτα τα 50 τελευταία
-                    myChart.data.datasets[0].data.shift();
-                    myChart.data.datasets[1].data.shift();
-                }
-                
-                if (data.temperature) myChart.data.datasets[0].data.push({x: now, y: data.temperature});
-                if (data.soil_moisture !== undefined) myChart.data.datasets[1].data.push({x: now, y: data.soil_moisture});
-                
-                myChart.update();
             }
         });
 

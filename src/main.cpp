@@ -38,11 +38,11 @@
 #define BOOT_BUTTON_PIN 0
 
 // ========== SENSOR CALIBRATION ==========
-#define SOIL_DRY_VALUE 3200  // Ξηρό χώμα (στον αέρα)
+#define SOIL_DRY_VALUE 3285  // Ξηρό (στον αέρα/ξύλο) - Βασισμένο στις μετρήσεις
 #define SOIL_WET_VALUE 1300  // Βρεγμένο χώμα (στο νερό)
 
 // ========== TIMING CONSTANTS ==========
-#define SENSOR_READ_INTERVAL 30000  // 30 seconds
+#define SENSOR_READ_INTERVAL 5000   // 5 seconds
 #define FIREBASE_CHECK_INTERVAL 2000 // 2 seconds
 #define BUTTON_HOLD_TIME 5000        // 5 seconds for WiFi reset
 #define DEBOUNCE_DELAY 50            // 50ms debounce
@@ -69,6 +69,12 @@ bool buttonPressed = false;
 bool firebaseReady = false;
 bool relayState = false;
 
+// Auto-watering variables
+bool autoWateringEnabled = false;
+unsigned long pumpStartTime = 0;
+unsigned long pumpDuration = 0;
+bool pumpTimerActive = false;
+
 // ========== SENSOR DATA STRUCTURE ==========
 struct SensorData {
     float temperature;
@@ -92,6 +98,8 @@ void uploadSensorsToFirebase();
 void checkFirebaseCommands();
 void controlRelay(bool state);
 void checkButtonForReset();
+void startPumpTimer(unsigned long duration);
+void stopPumpTimer();
 int mapSoilMoisture(int raw);
 
 // ========== SETUP ==========
@@ -120,6 +128,17 @@ void loop() {
         lastSensorRead = currentMillis;
         readSensors();
         uploadSensorsToFirebase();
+        
+        // Auto-watering logic
+        if (autoWateringEnabled && sensors.soilMoisture < 30 && !pumpTimerActive) {
+            Serial.println("[AUTO] Soil moisture low, starting pump for 15 seconds");
+            startPumpTimer(15000); // 15 seconds
+        }
+    }
+    
+    // Check pump timer
+    if (pumpTimerActive && (currentMillis - pumpStartTime >= pumpDuration)) {
+        stopPumpTimer();
     }
     
     // Check Firebase commands every 2 seconds
@@ -238,6 +257,10 @@ void initializeFirebase() {
         Firebase.RTDB.setString(&fbdo, "/greenhouse/system/status", "online");
         Firebase.RTDB.setString(&fbdo, "/greenhouse/system/device", "ESP32-S3");
         Firebase.RTDB.setInt(&fbdo, "/greenhouse/system/startup_time", millis());
+        
+        // Set default auto-watering mode (disabled)
+        Firebase.RTDB.setInt(&fbdo, "/greenhouse/controls/auto_mode", 0);
+        Firebase.RTDB.setInt(&fbdo, "/greenhouse/controls/water_15s", 0);
     } else {
         Serial.println("[ERROR] Firebase connection failed!");
         Serial.printf("[ERROR] Reason: %s\n\n", fbdo.errorReason().c_str());
@@ -335,18 +358,41 @@ void uploadSensorsToFirebase() {
     }
     
     if (success) {
-        Serial.println("[OK] All sensor data uploaded successfully\n");
-    } else {
-        Serial.println("[WARN] Some sensor data failed to upload\n");
+        Serial.println("[OK] All sensor data uploaded successfully!");
     }
 }
 
+// Check Firebase for remote commands
 void checkFirebaseCommands() {
     if (!firebaseReady || !Firebase.ready()) {
         return;
     }
     
-    // Check water pump control
+    // Check auto-watering mode
+    if (Firebase.RTDB.getInt(&fbdo, "/greenhouse/controls/auto_mode")) {
+        if (fbdo.dataType() == "int") {
+            bool newAutoMode = (fbdo.intData() == 1);
+            if (newAutoMode != autoWateringEnabled) {
+                autoWateringEnabled = newAutoMode;
+                Serial.printf("[FIREBASE] Auto-watering mode: %s\n", autoWateringEnabled ? "ENABLED" : "DISABLED");
+            }
+        }
+    }
+    
+    // Check manual pump trigger (15 seconds)
+    if (Firebase.RTDB.getInt(&fbdo, "/greenhouse/controls/water_15s")) {
+        if (fbdo.dataType() == "int") {
+            int trigger = fbdo.intData();
+            if (trigger == 1 && !pumpTimerActive) {
+                Serial.println("[MANUAL] Starting pump for 15 seconds");
+                startPumpTimer(15000);
+                // Reset trigger
+                Firebase.RTDB.setInt(&fbdo, "/greenhouse/controls/water_15s", 0);
+            }
+        }
+    }
+    
+    // Check instant water pump control (for compatibility)
     if (Firebase.RTDB.getInt(&fbdo, "/greenhouse/controls/water_pump")) {
         if (fbdo.dataType() == "int") {
             int pumpCommand = fbdo.intData();
@@ -391,27 +437,46 @@ void checkButtonForReset() {
             // Button held down
             unsigned long holdDuration = millis() - buttonPressStart;
             
+            // Reset WiFi if held for 5 seconds
             if (holdDuration >= BUTTON_HOLD_TIME) {
-                // Reset WiFi settings
-                Serial.println("\n========================================");
-                Serial.println("[RESET] WiFi Reset Triggered!");
-                Serial.println("========================================");
-                Serial.println("[INFO] Clearing saved WiFi credentials...");
-                
+                Serial.println("\n[RESET] BOOT button held for 5 seconds! Resetting WiFi...");
                 wm.resetSettings();
-                
-                Serial.println("[OK] WiFi settings cleared");
-                Serial.println("[INFO] Restarting ESP32...");
-                Serial.println("========================================\n");
-                
-                delay(1000);
+                Serial.println("[RESET] WiFi credentials cleared. Restarting ESP32...");
+                delay(500);
                 ESP.restart();
             }
         }
     } else {
         // Button released
-        if (buttonPressed && (millis() - lastDebounceTime > DEBOUNCE_DELAY)) {
+        if (buttonPressed) {
             buttonPressed = false;
         }
     }
 }
+
+// ========== PUMP TIMER FUNCTIONS ==========
+
+void startPumpTimer(unsigned long duration) {
+    pumpTimerActive = true;
+    pumpStartTime = millis();
+    pumpDuration = duration;
+    controlRelay(true);
+    
+    // Update Firebase
+    if (firebaseReady && Firebase.ready()) {
+        Firebase.RTDB.setInt(&fbdo, "/greenhouse/status/pump_timer_remaining", duration / 1000);
+    }
+}
+
+void stopPumpTimer() {
+    pumpTimerActive = false;
+    controlRelay(false);
+    Serial.println("[TIMER] Pump timer finished, stopping pump");
+    
+    // Update Firebase
+    if (firebaseReady && Firebase.ready()) {
+        Firebase.RTDB.setInt(&fbdo, "/greenhouse/status/pump_timer_remaining", 0);
+    }
+}
+
+// ========== MAIN LOOP ==========

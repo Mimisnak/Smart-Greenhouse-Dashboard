@@ -9,7 +9,7 @@
 <body>
     <div class="container">
         <header>
-            <h1>🌱 Smart Greenhouse</h1>
+            <h1>Smart Greenhouse</h1>
             <p class="subtitle">Real-time Monitoring & Control</p>
             <div class="status-indicator">
                 <span class="status-dot" id="statusDot"></span>
@@ -22,7 +22,6 @@
             <div class="cards-grid">
                 <!-- Temperature Card -->
                 <div class="card">
-                    <div class="card-icon">🌡️</div>
                     <div class="card-content">
                         <h3>Θερμοκρασία</h3>
                         <p class="value" id="temperature">--</p>
@@ -32,7 +31,6 @@
 
                 <!-- Pressure Card -->
                 <div class="card">
-                    <div class="card-icon">🔴</div>
                     <div class="card-content">
                         <h3>Πίεση</h3>
                         <p class="value" id="pressure">--</p>
@@ -40,29 +38,8 @@
                     </div>
                 </div>
 
-                <!-- Altitude Card -->
-                <div class="card">
-                    <div class="card-icon">⛰️</div>
-                    <div class="card-content">
-                        <h3>Υψόμετρο</h3>
-                        <p class="value" id="altitude">--</p>
-                        <p class="unit">m</p>
-                    </div>
-                </div>
-
-                <!-- Light Card -->
-                <div class="card">
-                    <div class="card-icon">💡</div>
-                    <div class="card-content">
-                        <h3>Φωτισμός</h3>
-                        <p class="value" id="light">--</p>
-                        <p class="unit">lux</p>
-                    </div>
-                </div>
-
                 <!-- Soil Moisture Card -->
                 <div class="card card-large">
-                    <div class="card-icon">💧</div>
                     <div class="card-content">
                         <h3>Υγρασία Χώματος</h3>
                         <p class="value" id="soilMoisture">--</p>
@@ -74,24 +51,58 @@
                     </div>
                 </div>
 
+                <!-- Altitude Card -->
+                <div class="card">
+                    <div class="card-content">
+                        <h3>Υψόμετρο</h3>
+                        <div class="value-display" id="altitude">--</div>
+                        <span class="unit">m</span>
+                    </div>
+                </div>
+
+                <!-- Light Sensor Card -->
+                <div class="card">
+                    <div class="card-content">
+                        <h3>Φωτισμός</h3>
+                        <div class="value-display" id="light">--</div>
+                        <span class="unit">lux</span>
+                    </div>
+                </div>
+
                 <!-- Water Pump Control Card -->
                 <div class="card card-large card-control">
-                    <div class="card-icon">🚰</div>
                     <div class="card-content">
-                        <h3>Αντλία Νερού</h3>
+                        <h3>Έλεγχος Αντλίας</h3>
+                        
+                        <!-- Auto/Manual Mode Toggle -->
+                        <div class="mode-toggle">
+                            <button class="btn-mode" id="manualBtn" onclick="setMode('manual')">Manual</button>
+                            <button class="btn-mode" id="autoBtn" onclick="setMode('auto')">Auto</button>
+                        </div>
+                        
                         <div class="pump-status" id="pumpStatus">OFF</div>
-                        <button class="btn-pump" id="pumpBtn" onclick="togglePump()">
-                            <span id="pumpBtnText">Ενεργοποίηση</span>
-                        </button>
-                        <p class="pump-hint">Κλικ για να ενεργοποιήσεις/απενεργοποιήσεις</p>
+                        
+                        <!-- Manual Control -->
+                        <div id="manualControls">
+                            <button class="btn-pump btn-water-15s" onclick="water15s()">
+                                Πότισμα 15s
+                            </button>
+                        </div>
+                        
+                        <!-- Auto Mode Info -->
+                        <div id="autoInfo" style="display:none;">
+                            <p class="auto-hint">Αυτόματο πότισμα όταν υγρασία &lt; 30%</p>
+                        </div>
+                        
+                        <p class="timer-display" id="timerDisplay"></p>
                     </div>
                 </div>
             </div>
 
             <!-- Last Update Info -->
             <div class="info-box">
-                <p>📊 Τελευταία Ενημέρωση: <span id="lastUpdate">--</span></p>
-                <p>⏱️ Επόμενη σε: <span id="nextUpdate">30</span>s</p>
+                <p>Τελευταία Ενημέρωση: <span id="lastUpdate">--</span></p>
+                <p>Επόμενη σε: <span id="nextUpdate">30</span>s</p>
             </div>
         </main>
 
@@ -104,25 +115,49 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getDatabase, ref, onValue, set } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+        import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
-        // Firebase Configuration - ΑΛΛΑΞΕ ΜΕ ΤΑ ΔΙΚΑ ΣΟΥ!
+        // Firebase Configuration
         const firebaseConfig = {
-            apiKey: "AIz4syfDCwwz-w4a8pFTp_dkLd4BvxDZXkZwfgQ",
+            apiKey: "AIzaSyDwwszw4AapfTp_dkdli48vsxOZXkZwqfo",
             authDomain: "smartgreenhouse-fb494.firebaseapp.com",
             databaseURL: "https://smartgreenhouse-fb494-default-rtdb.firebaseio.com",
             projectId: "smartgreenhouse-fb494",
             storageBucket: "smartgreenhouse-fb494.firebasestorage.app",
-            messagingSenderId: "465885829157",
-            appId: "1:465885829157:web:ca8b6772e139994dd2ea503"
+            messagingSenderId: "655885291578",
+            appId: "1:655885291578:web:cd006776213994db2ea503"
         };
 
         // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const database = getDatabase(app);
+        const auth = getAuth(app);
 
         // Global state
         let pumpState = 0;
-        let countdown = 30;
+        let countdown = 5;
+        let isAuthenticated = false;
+
+        // Authenticate anonymously
+        signInAnonymously(auth)
+            .then(() => {
+                console.log('✅ Authenticated successfully');
+            })
+            .catch((error) => {
+                console.error('❌ Authentication failed:', error);
+                alert('Σφάλμα σύνδεσης! Παρακαλώ ανανέωσε τη σελίδα.');
+            });
+
+        // Listen to auth state
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                isAuthenticated = true;
+                console.log('🔐 User authenticated:', user.uid);
+            } else {
+                isAuthenticated = false;
+                updateConnectionStatus(false);
+            }
+        });
 
         // Update connection status
         function updateConnectionStatus(connected) {
@@ -147,23 +182,23 @@
                 // Update sensor values
                 document.getElementById('temperature').textContent = data.temperature ? data.temperature.toFixed(1) : '--';
                 document.getElementById('pressure').textContent = data.pressure ? data.pressure.toFixed(1) : '--';
-                document.getElementById('altitude').textContent = data.altitude ? data.altitude.toFixed(1) : '--';
+                document.getElementById('altitude').textContent = data.altitude ? data.altitude.toFixed(0) : '--';
                 document.getElementById('light').textContent = data.light || '--';
-                document.getElementById('soilMoisture').textContent = data.soil_moisture || '--';
+                document.getElementById('soilMoisture').textContent = (data.soil_moisture !== undefined && data.soil_moisture !== null) ? data.soil_moisture : '--';
                 document.getElementById('soilRaw').textContent = data.soil_raw || '--';
                 
                 // Update soil moisture progress bar
                 const soilProgress = document.getElementById('soilProgress');
-                const moisture = data.soil_moisture || 0;
+                const moisture = (data.soil_moisture !== undefined && data.soil_moisture !== null) ? data.soil_moisture : 0;
                 soilProgress.style.width = moisture + '%';
                 
                 // Color based on moisture level
                 if (moisture < 30) {
-                    soilProgress.style.background = '#ef4444'; // Red
+                    soilProgress.style.background = 'linear-gradient(90deg, #ff0051 0%, #ff6b9d 100%)';
                 } else if (moisture < 60) {
-                    soilProgress.style.background = '#f59e0b'; // Orange
+                    soilProgress.style.background = 'linear-gradient(90deg, #ffbd2e 0%, #ffd96a 100%)';
                 } else {
-                    soilProgress.style.background = '#10b981'; // Green
+                    soilProgress.style.background = 'linear-gradient(90deg, #00ff41 0%, #64f4ac 100%)';
                 }
                 
                 // Update last update time
@@ -171,47 +206,100 @@
                 document.getElementById('lastUpdate').textContent = now.toLocaleTimeString('el-GR');
                 
                 // Reset countdown
-                countdown = 30;
+                countdown = 5;
             } else {
                 updateConnectionStatus(false);
             }
         });
 
-        // Listen to pump control
-        const pumpRef = ref(database, 'greenhouse/controls/water_pump');
-        onValue(pumpRef, (snapshot) => {
+        // Listen to auto mode
+        const autoModeRef = ref(database, 'greenhouse/controls/auto_mode');
+        let currentMode = 'manual';
+        onValue(autoModeRef, (snapshot) => {
+            const autoEnabled = snapshot.val() || 0;
+            currentMode = autoEnabled === 1 ? 'auto' : 'manual';
+            updateModeUI();
+        });
+
+        // Listen to pump status
+        const statusRef = ref(database, 'greenhouse/status/relay_state');
+        onValue(statusRef, (snapshot) => {
             pumpState = snapshot.val() || 0;
             updatePumpUI();
         });
 
+        // Listen to pump timer
+        const timerRef = ref(database, 'greenhouse/status/pump_timer_remaining');
+        onValue(timerRef, (snapshot) => {
+            const remaining = snapshot.val() || 0;
+            updateTimerUI(remaining);
+        });
+
+        // Update mode UI
+        function updateModeUI() {
+            const manualBtn = document.getElementById('manualBtn');
+            const autoBtn = document.getElementById('autoBtn');
+            const manualControls = document.getElementById('manualControls');
+            const autoInfo = document.getElementById('autoInfo');
+            
+            if (currentMode === 'auto') {
+                manualBtn.classList.remove('active');
+                autoBtn.classList.add('active');
+                manualControls.style.display = 'none';
+                autoInfo.style.display = 'block';
+            } else {
+                manualBtn.classList.add('active');
+                autoBtn.classList.remove('active');
+                manualControls.style.display = 'block';
+                autoInfo.style.display = 'none';
+            }
+        }
+
         // Update pump UI
         function updatePumpUI() {
             const pumpStatus = document.getElementById('pumpStatus');
-            const pumpBtn = document.getElementById('pumpBtn');
-            const pumpBtnText = document.getElementById('pumpBtnText');
             
             if (pumpState === 1) {
                 pumpStatus.textContent = 'ON';
                 pumpStatus.className = 'pump-status pump-on';
-                pumpBtn.className = 'btn-pump btn-pump-on';
-                pumpBtnText.textContent = 'Απενεργοποίηση';
             } else {
                 pumpStatus.textContent = 'OFF';
                 pumpStatus.className = 'pump-status pump-off';
-                pumpBtn.className = 'btn-pump btn-pump-off';
-                pumpBtnText.textContent = 'Ενεργοποίηση';
             }
         }
 
-        // Toggle pump
-        window.togglePump = async function() {
-            const newState = pumpState === 1 ? 0 : 1;
+        // Update timer UI
+        function updateTimerUI(seconds) {
+            const timerDisplay = document.getElementById('timerDisplay');
+            if (seconds > 0) {
+                timerDisplay.textContent = `Χρόνος: ${seconds}s`;
+                timerDisplay.style.display = 'block';
+            } else {
+                timerDisplay.style.display = 'none';
+            }
+        }
+
+        // Set mode
+        window.setMode = async function(mode) {
             try {
-                await set(pumpRef, newState);
-                console.log('Pump toggled:', newState);
+                const value = mode === 'auto' ? 1 : 0;
+                await set(autoModeRef, value);
+                console.log('Mode set to:', mode);
             } catch (error) {
-                console.error('Error toggling pump:', error);
-                alert('Σφάλμα! Δεν μπόρεσε να αλλάξει η κατάσταση της αντλίας.');
+                console.error('Error setting mode:', error);
+                alert('Σφάλμα! Δεν μπόρεσε να αλλάξει η λειτουργία.');
+            }
+        };
+
+        // Water for 15 seconds
+        window.water15s = async function() {
+            try {
+                const triggerRef = ref(database, 'greenhouse/controls/water_15s');
+                await set(triggerRef, 1);
+                console.log('15s watering triggered');
+            } catch (error) {
+                console.error('Error triggering watering:', error);
+                alert('Σφάλμα! Δεν μπόρεσε να ξεκινήσει το πότισμα.');
             }
         };
 
@@ -219,13 +307,14 @@
         setInterval(() => {
             countdown--;
             if (countdown <= 0) {
-                countdown = 30;
+                countdown = 5;
             }
             document.getElementById('nextUpdate').textContent = countdown;
         }, 1000);
 
         // Initial connection check
         updateConnectionStatus(false);
+        updateModeUI();
     </script>
 </body>
 </html>

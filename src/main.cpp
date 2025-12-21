@@ -287,8 +287,8 @@ void initializeWiFi() {
     Serial.print(WiFi.RSSI());
     Serial.println(" dBm\n");
     
-    // Set RGB LED to green when WiFi connected
-    rgbLED.setPixelColor(0, rgbLED.Color(0, 255, 0));  // Green
+    // Set RGB LED to off after WiFi connected (will blink blue on activity)
+    rgbLED.setPixelColor(0, rgbLED.Color(0, 0, 0));  // Off
     rgbLED.show();
 }
 
@@ -446,8 +446,8 @@ void uploadSensorsToFirebase() {
     
     if (success) {
         Serial.println("[OK] All sensor data uploaded successfully!");
-        // Flash RGB LED yellow when uploading data
-        flashRGBLED(255, 150, 0, 200);  // Orange/yellow flash for 200ms
+        // Flash RGB LED blue when uploading data
+        flashRGBLED(0, 0, 255, 200);  // Blue flash for 200ms
     }
     
     // Upload to history every 30 seconds
@@ -461,8 +461,8 @@ void uploadSensorsToFirebase() {
         Firebase.RTDB.setInt(&fbdo, historyPath + "/timestamp", millis());
         
         Serial.println("[HISTORY] Data saved to Firebase");
-        // Flash RGB LED cyan when uploading history
-        flashRGBLED(0, 255, 255, 200);  // Cyan flash for 200ms
+        // Flash RGB LED blue when uploading history
+        flashRGBLED(0, 0, 255, 200);  // Blue flash for 200ms
     }
 }
 
@@ -601,7 +601,7 @@ void flashRGBLED(uint8_t r, uint8_t g, uint8_t b, int duration) {
     rgbLED.setPixelColor(0, rgbLED.Color(r, g, b));
     rgbLED.show();
     delay(duration);
-    rgbLED.setPixelColor(0, rgbLED.Color(0, 255, 0));  // Back to green (normal)
+    rgbLED.setPixelColor(0, rgbLED.Color(0, 0, 0));  // Turn off
     rgbLED.show();
 }
 

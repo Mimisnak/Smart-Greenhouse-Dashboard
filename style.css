@@ -372,6 +372,7 @@ header h1 {
     border: 2px solid #64f4ac;
     border-radius: 8px;
     background: rgba(100, 244, 172, 0.05);
+    transition: opacity 0.3s;
 }
 
 .threshold-controls {
@@ -611,4 +612,26 @@ footer::before {
 @keyframes cursor-blink {
     0%, 50% { opacity: 1; }
     51%, 100% { opacity: 0; }
+}
+
+.hide-auto-info {
+    display: none !important;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.auto-mode-container {
+    margin: 20px 0;
+    padding: 15px;
+    border: 2px solid #64f4ac;
+    border-radius: 8px;
+    background: rgba(100, 244, 172, 0.05);
+    transition: opacity 0.3s;
+}
+
+.copyright-info {
+    font-size: 0.95em;
+    color: #00ff41;
+    margin-top: 4px;
 }

@@ -135,7 +135,7 @@
 
         // Global state
         let pumpState = 0;
-        let countdown = 30;
+        let countdown = 5;
         let isAuthenticated = false;
 
         // Authenticate anonymously
@@ -206,7 +206,7 @@
                 document.getElementById('lastUpdate').textContent = now.toLocaleTimeString('el-GR');
                 
                 // Reset countdown
-                countdown = 30;
+                countdown = 5;
             } else {
                 updateConnectionStatus(false);
             }
@@ -307,7 +307,7 @@
         setInterval(() => {
             countdown--;
             if (countdown <= 0) {
-                countdown = 30;
+                countdown = 5;
             }
             document.getElementById('nextUpdate').textContent = countdown;
         }, 1000);

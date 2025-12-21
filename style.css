@@ -48,11 +48,6 @@ header h1 {
     font-weight: normal;
 }
 
-header h1::before {
-    content: '> ';
-    color: #ff0051;
-}
-
 .subtitle {
     color: #64f4ac;
     font-size: 1.1em;
@@ -153,11 +148,6 @@ header h1::before {
     letter-spacing: 2px;
 }
 
-.card-content h3::before {
-    content: '$ ';
-    color: #00ff41;
-}
-
 .value {
     font-size: 2.8em;
     font-weight: bold;
@@ -246,8 +236,38 @@ header h1::before {
     color: #ff0051;
 }
 
-.card-control .card-content h3::before {
-    color: #ff0051;
+/* Mode Toggle Buttons */
+.mode-toggle {
+    display: flex;
+    gap: 10px;
+    margin: 15px 0;
+}
+
+.btn-mode {
+    flex: 1;
+    padding: 10px 20px;
+    font-size: 1em;
+    font-weight: 600;
+    border: 2px solid #64f4ac;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: 'Courier New', monospace;
+    text-transform: uppercase;
+    background: rgba(100, 244, 172, 0.1);
+    color: #64f4ac;
+}
+
+.btn-mode:hover {
+    background: rgba(100, 244, 172, 0.2);
+    transform: translateY(-2px);
+}
+
+.btn-mode.active {
+    background: #00ff41;
+    color: #0a0e27;
+    border-color: #00ff41;
+    box-shadow: 0 0 15px rgba(0, 255, 65, 0.4);
 }
 
 .pump-status {
@@ -260,35 +280,35 @@ header h1::before {
     border: 2px solid;
     font-family: 'Courier New', monospace;
 }
-
-.pump-on {
-    background: rgba(0, 255, 65, 0.2);
+water-15s {
+    background: rgba(0, 255, 65, 0.1);
     color: #00ff41;
     border-color: #00ff41;
-    box-shadow: 0 0 15px rgba(0, 255, 65, 0.3);
 }
 
-.pump-off {
-    background: rgba(255, 0, 81, 0.2);
-    color: #ff0051;
-    border-color: #ff0051;
-    box-shadow: 0 0 15px rgba(255, 0, 81, 0.3);
+.btn-water-15s:hover {
+    background: rgba(0, 255, 65, 0.3);
+    box-shadow: 0 0 20px rgba(0, 255, 65, 0.4);
+    transform: scale(1.05);
 }
 
-.btn-pump {
-    width: 100%;
-    padding: 15px 30px;
-    font-size: 1.1em;
-    font-weight: 600;
-    border: 2px solid;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.3s ease;
+.auto-hint {
+    color: #64f4ac;
+    font-size: 0.95em;
     margin: 15px 0;
-    font-family: 'Courier New', monospace;
-    text-transform: uppercase;
-    letter-spacing: 1px;
+    padding: 10px;
+    border: 1px solid #64f4ac;
+    border-radius: 5px;
+    background: rgba(100, 244, 172, 0.1);
 }
+
+.timer-display {
+    color: #ffbd2e;
+    font-size: 1.1em;
+    font-weight: bold;
+    margin-top: 10px;
+    text-align: center;
+    display: none
 
 .btn-pump-off {
     background: rgba(0, 255, 65, 0.1);
@@ -339,11 +359,6 @@ header h1::before {
 .info-box p {
     color: #64f4ac;
     font-weight: 600;
-}
-
-.info-box p::before {
-    content: '> ';
-    color: #00ff41;
 }
 
 .info-box span {

@@ -3,72 +3,229 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Greenhouse Live</title>
+    <title>Smart Greenhouse Dashboard</title>
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 
     <style>
-        /* Hacker / Terminal Theme */
         @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
-        :root { --bg: #050505; --card: #0a0a0a; --green: #00ff41; --blue: #008F11; --text: #e0e0e0; }
+
+        :root {
+            --bg-color: #050505;
+            --card-bg: #0a0a0a;
+            --primary: #00ff41; /* Hacker Green */
+            --secondary: #008F11;
+            --alert: #ff0055;
+            --text: #e0e0e0;
+            --grid: #1a1a1a;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text);
+            font-family: 'Share Tech Mono', monospace;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        /* HEADER STYLE */
+        .header-box {
+            grid-column: 1 / -1;
+            border: 1px solid var(--primary);
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.2);
+            position: relative;
+        }
         
-        body { background: var(--bg); color: var(--text); font-family: 'Share Tech Mono', monospace; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-        .container { width: 100%; max-width: 1000px; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; }
+        h1 {
+            color: var(--primary);
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: 1.8em;
+            text-shadow: 0 0 10px var(--primary);
+        }
+
+        .subtitle { color: var(--secondary); margin-top: 5px; font-size: 0.9em; }
+        .status-badge {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            border: 1px solid var(--primary);
+            padding: 5px 15px;
+            color: var(--primary);
+            border-radius: 20px;
+            background: rgba(0, 255, 65, 0.1);
+        }
+
+        /* CARD STYLE */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--secondary);
+            padding: 20px;
+            border-radius: 4px;
+            position: relative;
+            box-shadow: 0 0 5px rgba(0, 255, 65, 0.1);
+            transition: transform 0.2s;
+        }
+
+        .card:hover { border-color: var(--primary); transform: translateY(-2px); }
+
+        .card-title {
+            color: var(--secondary);
+            font-size: 0.8em;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
         
-        h1 { color: var(--green); text-shadow: 0 0 10px var(--green); border-bottom: 2px solid var(--blue); padding-bottom: 10px; width: 100%; text-align: center; }
-        
-        .card { background: var(--card); border: 1px solid var(--blue); padding: 15px; border-radius: 5px; text-align: center; box-shadow: 0 0 5px rgba(0, 255, 65, 0.1); }
-        .title { color: #888; font-size: 0.9em; margin-bottom: 5px; }
-        .value { font-size: 2.5em; color: var(--green); text-shadow: 0 0 5px var(--green); }
-        .unit { font-size: 1em; color: #666; }
-        
-        .full { grid-column: 1 / -1; }
-        .chart-box { position: relative; height: 350px; width: 100%; }
-        
-        .btn { background: transparent; border: 1px solid var(--green); color: var(--green); padding: 10px 20px; cursor: pointer; font-family: inherit; margin: 5px; transition: 0.2s; }
-        .btn:hover { background: var(--green); color: black; box-shadow: 0 0 10px var(--green); }
-        .btn-off { border-color: #ff0055; color: #ff0055; }
-        .btn-off:hover { background: #ff0055; color: white; box-shadow: 0 0 10px #ff0055; }
-        
-        #status { position: fixed; top: 10px; right: 10px; padding: 5px 10px; border: 1px solid var(--green); border-radius: 15px; font-size: 0.8em; background: rgba(0,0,0,0.8); }
+        /* Dots decoration */
+        .dots { display: flex; gap: 5px; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: #333; }
+        .dot.red { background: #ff5555; }
+        .dot.yellow { background: #ffb86c; }
+        .dot.green { background: #50fa7b; }
+
+        .value { font-size: 3.5em; color: var(--primary); text-shadow: 0 0 5px var(--primary); line-height: 1; }
+        .unit { font-size: 1em; color: #888; vertical-align: super; }
+        .sub-value { font-size: 0.8em; color: #555; margin-top: 10px; }
+
+        /* Full width for controls & charts */
+        .full-width { grid-column: 1 / -1; }
+
+        /* BUTTONS */
+        .control-group { display: flex; gap: 15px; margin-top: 15px; }
+        .btn {
+            background: transparent;
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            padding: 10px 25px;
+            font-family: inherit;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-size: 1.1em;
+            transition: 0.3s;
+            flex: 1;
+        }
+        .btn:hover { background: var(--primary); color: black; box-shadow: 0 0 15px var(--primary); }
+        .btn-off { border-color: var(--alert); color: var(--alert); }
+        .btn-off:hover { background: var(--alert); color: white; box-shadow: 0 0 15px var(--alert); }
+
+        /* CHART CONTAINERS */
+        .charts-row {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .chart-card {
+            background: var(--card-bg);
+            border: 1px solid #333;
+            padding: 15px;
+            height: 300px;
+        }
+        .chart-title { color: #888; margin-bottom: 10px; font-size: 0.9em; text-align: center; }
+
+        /* FOOTER */
+        .footer {
+            grid-column: 1 / -1;
+            border-top: 1px solid #333;
+            margin-top: 30px;
+            padding-top: 20px;
+            text-align: center;
+            color: #555;
+            font-size: 0.8em;
+            width: 100%;
+        }
     </style>
 </head>
 <body>
 
-    <div id="status">CONNECTING...</div>
-    <h1>🌱 Smart Greenhouse Monitor</h1>
-
     <div class="container">
+        <div class="header-box">
+            <div class="status-badge" id="status">CONNECTING...</div>
+            <h1>$ Smart Greenhouse</h1>
+            <div class="subtitle">Real-time Monitoring & Control System v1.0</div>
+        </div>
+
         <div class="card">
-            <div class="title">ΘΕΡΜΟΚΡΑΣΙΑ</div>
+            <div class="card-title"><div class="dots"><div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div></div> ΘΕΡΜΟΚΡΑΣΙΑ</div>
             <div><span class="value" id="temp">--</span> <span class="unit">°C</span></div>
         </div>
+
         <div class="card">
-            <div class="title">ΥΓΡΑΣΙΑ ΕΔΑΦΟΥΣ</div>
-            <div><span class="value" id="soil">--</span> <span class="unit">%</span></div>
+            <div class="card-title"><div class="dots"><div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div></div> ΠΙΕΣΗ</div>
+            <div><span class="value" id="pressure">--</span> <span class="unit">hPa</span></div>
         </div>
+
         <div class="card">
-            <div class="title">ΦΩΤΙΣΜΟΣ</div>
+            <div class="card-title"><div class="dots"><div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div></div> ΥΓΡΑΣΙΑ ΧΩΜΑΤΟΣ</div>
+            <div><span class="value" id="soil">--</span> <span class="unit">%</span></div>
+            <div class="sub-value">Raw Sensor Data: <span id="soilRaw">--</span></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title"><div class="dots"><div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div></div> ΦΩΤΙΣΜΟΣ</div>
             <div><span class="value" id="light">--</span> <span class="unit">lx</span></div>
         </div>
 
-        <div class="card">
-            <div class="title">ΑΝΤΛΙΑ ΝΕΡΟΥ</div>
-            <button class="btn" onclick="togglePump(true)">ON</button>
-            <button class="btn btn-off" onclick="togglePump(false)">OFF</button>
-            <div style="margin-top:5px; font-size:0.8em;">Status: <span id="pumpStatus">...</span></div>
+        <div class="card full-width" style="border-color: var(--alert);">
+            <div class="card-title" style="color: var(--alert);">
+                <div class="dots"><div class="dot red"></div><div class="dot red"></div><div class="dot red"></div></div> 
+                ΕΛΕΓΧΟΣ ΑΝΤΛΙΑΣ
+            </div>
+            <div class="control-group">
+                <button class="btn" onclick="togglePump(true)">START PUMP</button>
+                <button class="btn btn-off" onclick="togglePump(false)">STOP PUMP</button>
+            </div>
+            <div style="margin-top: 15px; text-align: center;">
+                STATUS: <span id="pumpStatus" style="font-weight: bold;">UNKNOWN</span>
+            </div>
         </div>
 
-        <div class="card full">
-            <div class="title">LIVE DIAGRAM (REAL-TIME)</div>
-            <div class="chart-box"><canvas id="myChart"></canvas></div>
+        <div class="charts-row">
+            <div class="chart-card">
+                <div class="chart-title">ΙΣΤΟΡΙΚΟ ΘΕΡΜΟΚΡΑΣΙΑΣ</div>
+                <div style="height: 240px;"><canvas id="chartTemp"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">ΙΣΤΟΡΙΚΟ ΥΓΡΑΣΙΑΣ</div>
+                <div style="height: 240px;"><canvas id="chartSoil"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">ΙΣΤΟΡΙΚΟ ΦΩΤΙΣΜΟΥ</div>
+                <div style="height: 240px;"><canvas id="chartLight"></canvas></div>
+            </div>
+        </div>
+
+        <div class="footer">
+            mimis@greenhouse:~$ ESP32-S3 System | Powered by Firebase <br>
+            Last Update: <span id="lastUpdate">--</span>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-        import { getDatabase, ref, onValue, set, query, orderByChild, limitToLast } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+        import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDwwszw4AapfTp_dkdli48vsxOZXkZwqfo",
@@ -83,560 +240,80 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // --- CHART CONFIG ---
-        const ctx = document.getElementById('myChart').getContext('2d');
-        const myChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                datasets: [
-                    { label: 'Temp (°C)', borderColor: '#00ff41', data: [], tension: 0.4, pointRadius: 2 },
-                    { label: 'Soil (%)', borderColor: '#00ccff', data: [], tension: 0.4, pointRadius: 2 }
-                ]
+        // --- COMMON CHART OPTIONS ---
+        const commonOptions = {
+            responsive: true, maintainAspectRatio: false, animation: false,
+            scales: {
+                x: { type: 'time', time: { unit: 'second' }, grid: { color: '#222' }, ticks: { color: '#666' } },
+                y: { grid: { color: '#222' }, ticks: { color: '#666' } }
             },
-            options: {
-                responsive: true, maintainAspectRatio: false, animation: false,
-                scales: {
-                    x: { 
-                        type: 'time', 
-                        time: { unit: 'minute', displayFormats: { minute: 'HH:mm' } },
-                        grid: { color: '#222' },
-                        ticks: { color: '#888' }
-                    },
-                    y: { 
-                        grid: { color: '#222' },
-                        ticks: { color: '#888' }
-                    }
-                },
-                plugins: {
-                    legend: { labels: { color: '#e0e0e0' } }
-                }
-            }
+            plugins: { legend: { display: false } }
+        };
+
+        // --- INIT 3 CHARTS ---
+        // 1. Temperature Chart
+        const chartTemp = new Chart(document.getElementById('chartTemp'), {
+            type: 'line',
+            data: { datasets: [{ label: 'Temp', borderColor: '#00ff41', backgroundColor: 'rgba(0, 255, 65, 0.1)', fill: true, data: [], tension: 0.4, pointRadius: 2 }] },
+            options: commonOptions
         });
 
-        // --- LOAD HISTORY FROM FIREBASE ---
-        const historyRef = query(ref(db, 'greenhouse/history'), orderByChild('timestamp'), limitToLast(100));
-        onValue(historyRef, (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                // Clear existing data
-                myChart.data.datasets[0].data = [];
-                myChart.data.datasets[1].data = [];
-                
-                // Add all history points
-                Object.values(data).forEach(record => {
-                    if (record.timestamp && record.temperature !== undefined) {
-                        myChart.data.datasets[0].data.push({x: record.timestamp, y: record.temperature});
-                    }
-                    if (record.timestamp && record.soil_moisture !== undefined) {
-                        myChart.data.datasets[1].data.push({x: record.timestamp, y: record.soil_moisture});
-                    }
-                });
-                
-                myChart.update();
-                console.log('[CHART] Loaded history:', Object.keys(data).length, 'records');
-            }
+        // 2. Soil Chart
+        const chartSoil = new Chart(document.getElementById('chartSoil'), {
+            type: 'line',
+            data: { datasets: [{ label: 'Soil', borderColor: '#00ccff', backgroundColor: 'rgba(0, 204, 255, 0.1)', fill: true, data: [], tension: 0.4, pointRadius: 2 }] },
+            options: commonOptions
         });
 
-        // --- READ LIVE DATA ---
+        // 3. Light Chart
+        const chartLight = new Chart(document.getElementById('chartLight'), {
+            type: 'line',
+            data: { datasets: [{ label: 'Light', borderColor: '#ffb86c', backgroundColor: 'rgba(255, 184, 108, 0.1)', fill: true, data: [], tension: 0.4, pointRadius: 2 }] },
+            options: commonOptions
+        });
+
+        // --- DATA LISTENER ---
         const sensorsRef = ref(db, 'greenhouse/sensors');
         onValue(sensorsRef, (snapshot) => {
             const data = snapshot.val();
             document.getElementById('status').innerText = "ONLINE ✓";
-
+            
             if (data) {
-                const t = data.temperature ? data.temperature.toFixed(1) : "--";
-                const s = data.soil_moisture !== undefined ? data.soil_moisture : "--";
-                const l = data.light !== undefined ? data.light : "--";
+                // Update Cards
+                if(data.temperature) document.getElementById('temp').innerText = data.temperature.toFixed(1);
+                if(data.pressure) document.getElementById('pressure').innerText = data.pressure.toFixed(1);
+                if(data.soil_moisture !== undefined) {
+                    document.getElementById('soil').innerText = data.soil_moisture;
+                    document.getElementById('soilRaw').innerText = data.soil_raw || "--";
+                }
+                if(data.light !== undefined) document.getElementById('light').innerText = data.light;
+                
+                document.getElementById('lastUpdate').innerText = new Date().toLocaleTimeString();
 
-                document.getElementById('temp').innerText = t;
-                document.getElementById('soil').innerText = s;
-                document.getElementById('light').innerText = l;
+                // Update Charts
+                const now = Date.now();
+                
+                // Function to update a chart
+                const updateChart = (chart, value) => {
+                    if (chart.data.datasets[0].data.length > 50) chart.data.datasets[0].data.shift();
+                    chart.data.datasets[0].data.push({x: now, y: value});
+                    chart.update();
+                };
+
+                if(data.temperature) updateChart(chartTemp, data.temperature);
+                if(data.soil_moisture !== undefined) updateChart(chartSoil, data.soil_moisture);
+                if(data.light !== undefined) updateChart(chartLight, data.light);
             }
         });
 
         // --- PUMP CONTROL ---
         window.togglePump = (state) => set(ref(db, 'greenhouse/controls/water_pump'), state ? 1 : 0);
         onValue(ref(db, 'greenhouse/controls/water_pump'), (snap) => {
-            document.getElementById('pumpStatus').innerText = snap.val() == 1 ? "ON 🟢" : "OFF 🔴";
+            const isOn = snap.val() == 1;
+            const statusElem = document.getElementById('pumpStatus');
+            statusElem.innerText = isOn ? "ACTIVE (RUNNING)" : "STANDBY (OFF)";
+            statusElem.style.color = isOn ? "var(--primary)" : "#888";
         });
-    </script>
-</body>
-</html>
-                                <button class="btn-water-15s" onclick="water15s()">
-                                    Πότισμα 15s
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <!-- Auto Mode Info -->
-                        <div id="autoInfo" style="display:none;" class="auto-mode-container">
-                            <div class="auto-hint">Αυτόματο πότισμα όταν υγρασία &lt;</div>
-                            <div class="threshold-controls">
-                                <input type="number" id="moistureThreshold" value="30" min="0" max="100" class="threshold-input">
-                                <span class="threshold-unit">%</span>
-                                <button class="btn-threshold" onclick="updateThreshold()">Ενημέρωση</button>
-                            </div>
-                        </div>
-                        
-                        <p class="timer-display" id="timerDisplay"></p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Charts Section -->
-            <div class="charts-section">
-                <h2 class="charts-title">Ιστορικό 24 Ωρών</h2>
-                
-                <div class="chart-container">
-                    <h3 class="chart-title">Υγρασία Εδάφους (%)</h3>
-                    <canvas id="moistureChart"></canvas>
-                </div>
-                
-                <div class="chart-container">
-                    <h3 class="chart-title">Θερμοκρασία (°C)</h3>
-                    <canvas id="temperatureChart"></canvas>
-                </div>
-                
-                <div class="chart-container">
-                    <h3 class="chart-title">Πίεση (hPa)</h3>
-                    <canvas id="pressureChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Last Update Info -->
-            <div class="info-box">
-                <p>Τελευταία Ενημέρωση: <span id="lastUpdate">--</span></p>
-                <p>Επόμενη σε: <span id="nextUpdate">30</span>s</p>
-            </div>
-        </main>
-
-        <footer>
-            <p>ESP32-S3 Smart Greenhouse System | Powered by Firebase</p>
-        </footer>
-    </div>
-
-    <!-- Firebase SDK -->
-    <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getDatabase, ref, onValue, set, get, update } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
-        import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-
-        // Firebase Configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyDwwszw4AapfTp_dkdli48vsxOZXkZwqfo",
-            authDomain: "smartgreenhouse-fb494.firebaseapp.com",
-            databaseURL: "https://smartgreenhouse-fb494-default-rtdb.firebaseio.com",
-            projectId: "smartgreenhouse-fb494",
-            storageBucket: "smartgreenhouse-fb494.firebasestorage.app",
-            messagingSenderId: "655885291578",
-            appId: "1:655885291578:web:cd006776213994db2ea503"
-        };
-
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const database = getDatabase(app);
-        const auth = getAuth(app);
-
-        // Global state
-        let pumpState = 0;
-        let countdown = 5;
-        let isAuthenticated = false;
-
-        // Authenticate anonymously
-        signInAnonymously(auth)
-            .then(() => {
-                console.log('✅ Authenticated successfully');
-            })
-            .catch((error) => {
-                console.error('❌ Authentication failed:', error);
-                alert('Σφάλμα σύνδεσης! Παρακαλώ ανανέωσε τη σελίδα.');
-            });
-
-        // Listen to auth state
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                isAuthenticated = true;
-                console.log('🔐 User authenticated:', user.uid);
-            } else {
-                isAuthenticated = false;
-                updateConnectionStatus(false);
-            }
-        });
-
-        // Update connection status
-        function updateConnectionStatus(connected) {
-            const statusDot = document.getElementById('statusDot');
-            const statusText = document.getElementById('connectionStatus');
-            if (connected) {
-                statusDot.className = 'status-dot online';
-                statusText.textContent = 'Συνδεδεμένο ✓';
-            } else {
-                statusDot.className = 'status-dot offline';
-                statusText.textContent = 'Αποσυνδεδεμένο ✗';
-            }
-        }
-
-        // Listen to sensor data
-        const sensorsRef = ref(database, 'greenhouse/sensors');
-        onValue(sensorsRef, (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                updateConnectionStatus(true);
-                
-                // Update sensor values
-                document.getElementById('temperature').textContent = data.temperature ? data.temperature.toFixed(1) : '--';
-                document.getElementById('pressure').textContent = data.pressure ? data.pressure.toFixed(1) : '--';
-                document.getElementById('altitude').textContent = data.altitude ? data.altitude.toFixed(0) : '--';
-                document.getElementById('light').textContent = data.light || '--';
-                document.getElementById('soilMoisture').textContent = (data.soil_moisture !== undefined && data.soil_moisture !== null) ? data.soil_moisture : '--';
-                document.getElementById('soilRaw').textContent = data.soil_raw || '--';
-                
-                // Update soil moisture progress bar
-                const soilProgress = document.getElementById('soilProgress');
-                const moisture = (data.soil_moisture !== undefined && data.soil_moisture !== null) ? data.soil_moisture : 0;
-                soilProgress.style.width = moisture + '%';
-                
-                // Color based on moisture level
-                if (moisture < 30) {
-                    soilProgress.style.background = 'linear-gradient(90deg, #ff0051 0%, #ff6b9d 100%)';
-                } else if (moisture < 60) {
-                    soilProgress.style.background = 'linear-gradient(90deg, #ffbd2e 0%, #ffd96a 100%)';
-                } else {
-                    soilProgress.style.background = 'linear-gradient(90deg, #00ff41 0%, #64f4ac 100%)';
-                }
-                
-                // Update last update time
-                const now = new Date();
-                document.getElementById('lastUpdate').textContent = now.toLocaleTimeString('el-GR');
-                
-                // Reset countdown
-                countdown = 5;
-            } else {
-                updateConnectionStatus(false);
-            }
-        });
-
-        // Listen to auto mode
-        const autoModeRef = ref(database, 'greenhouse/controls/auto_mode');
-        let currentMode = 'manual';
-        onValue(autoModeRef, (snapshot) => {
-            const autoEnabled = snapshot.val() || 0;
-            currentMode = autoEnabled === 1 ? 'auto' : 'manual';
-            updateModeUI();
-        });
-
-        // Listen to moisture threshold
-        const thresholdRef = ref(database, 'greenhouse/controls/moisture_threshold');
-        onValue(thresholdRef, (snapshot) => {
-            const threshold = snapshot.val() || 30;
-            document.getElementById('moistureThreshold').value = threshold;
-            console.log('Threshold loaded:', threshold);
-        });
-
-        // Listen to pump status
-        const statusRef = ref(database, 'greenhouse/status/relay_state');
-        onValue(statusRef, (snapshot) => {
-            pumpState = snapshot.val() || 0;
-            updatePumpUI();
-        });
-
-        // Listen to pump timer
-        const timerRef = ref(database, 'greenhouse/status/pump_timer_remaining');
-        onValue(timerRef, (snapshot) => {
-            const remaining = snapshot.val() || 0;
-            updateTimerUI(remaining);
-        });
-
-        // Update mode UI
-        function updateModeUI() {
-            const manualBtn = document.getElementById('manualBtn');
-            const autoBtn = document.getElementById('autoBtn');
-            const manualControls = document.getElementById('manualControls');
-            const autoInfo = document.getElementById('autoInfo');
-            
-            if (currentMode === 'auto') {
-                manualBtn.classList.remove('active');
-                autoBtn.classList.add('active');
-                manualControls.style.display = 'none';
-                autoInfo.style.display = 'block';
-            } else {
-                manualBtn.classList.add('active');
-                autoBtn.classList.remove('active');
-                manualControls.style.display = 'block';
-                autoInfo.style.display = 'none';
-            }
-        }
-
-        // Update pump UI
-        function updatePumpUI() {
-            const pumpStatus = document.getElementById('pumpStatus');
-            
-            if (pumpState === 1) {
-                pumpStatus.textContent = 'ON';
-                pumpStatus.className = 'pump-status on';
-            } else {
-                pumpStatus.textContent = 'OFF';
-                pumpStatus.className = 'pump-status';
-            }
-        }
-
-        // Update timer UI
-        function updateTimerUI(seconds) {
-            const timerDisplay = document.getElementById('timerDisplay');
-            if (seconds > 0) {
-                timerDisplay.textContent = `Χρόνος: ${seconds}s`;
-                timerDisplay.style.display = 'block';
-            } else {
-                timerDisplay.style.display = 'none';
-            }
-        }
-
-        // Set mode
-        window.setMode = async function(mode) {
-            try {
-                const value = mode === 'auto' ? 1 : 0;
-                await set(autoModeRef, value);
-                console.log('Mode set to:', mode);
-            } catch (error) {
-                console.error('Error setting mode:', error);
-                alert('Σφάλμα! Δεν μπόρεσε να αλλάξει η λειτουργία.');
-            }
-        };
-
-        // Water for 15 seconds
-        window.water15s = async function() {
-            try {
-                const triggerRef = ref(database, 'greenhouse/controls/water_15s');
-                await set(triggerRef, 1);
-                console.log('15s watering triggered');
-            } catch (error) {
-                console.error('Error triggering watering:', error);
-                alert('Σφάλμα! Δεν μπόρεσε να ξεκινήσει το πότισμα.');
-            }
-        };
-
-        // Update moisture threshold
-        window.updateThreshold = async function() {
-            try {
-                const threshold = parseInt(document.getElementById('moistureThreshold').value);
-                if (threshold < 0 || threshold > 100) {
-                    alert('Η τιμή πρέπει να είναι μεταξύ 0-100%');
-                    return;
-                }
-                const thresholdRef = ref(database, 'greenhouse/controls/moisture_threshold');
-                await set(thresholdRef, threshold);
-                console.log('Threshold updated to:', threshold);
-                alert(`Όριο υγρασίας ενημερώθηκε σε ${threshold}%`);
-            } catch (error) {
-                console.error('Error updating threshold:', error);
-                alert('Σφάλμα! Δεν μπόρεσε να ενημερωθεί το όριο.');
-            }
-        };
-
-        // Countdown timer
-        setInterval(() => {
-            countdown--;
-            if (countdown <= 0) {
-                countdown = 5;
-            }
-            document.getElementById('nextUpdate').textContent = countdown;
-        }, 1000);
-
-        // ========== CHARTS SETUP ==========
-        
-        // Chart configuration
-        const chartOptions = {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: false
-                }
-            },
-            scales: {
-                x: {
-                    type: 'time',
-                    time: {
-                        unit: 'hour',
-                        displayFormats: {
-                            hour: 'HH:mm'
-                        }
-                    },
-                    grid: {
-                        color: 'rgba(0, 255, 65, 0.1)'
-                    },
-                    ticks: {
-                        color: '#00ff41'
-                    }
-                },
-                y: {
-                    grid: {
-                        color: 'rgba(0, 255, 65, 0.1)'
-                    },
-                    ticks: {
-                        color: '#00ff41'
-                    }
-                }
-            }
-        };
-
-        // Initialize charts
-        const moistureChart = new Chart(document.getElementById('moistureChart'), {
-            type: 'line',
-            data: {
-                datasets: [{
-                    label: 'Υγρασία %',
-                    data: [],
-                    borderColor: '#00ff41',
-                    backgroundColor: 'rgba(0, 255, 65, 0.1)',
-                    borderWidth: 2,
-                    tension: 0.4,
-                    fill: true
-                }]
-            },
-            options: {
-                ...chartOptions,
-                scales: {
-                    ...chartOptions.scales,
-                    y: {
-                        ...chartOptions.scales.y,
-                        min: 0,
-                        max: 100
-                    }
-                }
-            }
-        });
-
-        const temperatureChart = new Chart(document.getElementById('temperatureChart'), {
-            type: 'line',
-            data: {
-                datasets: [{
-                    label: 'Θερμοκρασία °C',
-                    data: [],
-                    borderColor: '#ff6b9d',
-                    backgroundColor: 'rgba(255, 107, 157, 0.1)',
-                    borderWidth: 2,
-                    tension: 0.4,
-                    fill: true
-                }]
-            },
-            options: chartOptions
-        });
-
-        const pressureChart = new Chart(document.getElementById('pressureChart'), {
-            type: 'line',
-            data: {
-                datasets: [{
-                    label: 'Πίεση hPa',
-                    data: [],
-                    borderColor: '#4fc3f7',
-                    backgroundColor: 'rgba(79, 195, 247, 0.1)',
-                    borderWidth: 2,
-                    tension: 0.4,
-                    fill: true
-                }]
-            },
-            options: chartOptions
-        });
-
-        // Load and update chart data
-        const historyRef = ref(database, 'greenhouse/history');
-        onValue(historyRef, (snapshot) => {
-            const data = snapshot.val();
-            
-            console.log('📊 History data received:', data ? Object.keys(data).length + ' records' : 'No data');
-            
-            if (!data) {
-                console.warn('⚠️ No history data available yet. ESP32 needs to run for a while.');
-                return;
-            }
-
-            // Convert millis() timestamps to relative time
-            const timestamps = Object.keys(data).map(t => parseInt(t));
-            const maxTimestamp = Math.max(...timestamps);
-            const currentTime = Date.now();
-            
-            console.log(`📊 Latest timestamp: ${maxTimestamp}, Oldest: ${Math.min(...timestamps)}`);
-
-            // Filter data for last 24 hours of ESP32 runtime (86400000 ms)
-            const twentyFourHours = 24 * 60 * 60 * 1000;
-            const cutoffTime = maxTimestamp - twentyFourHours;
-
-            const moistureData = [];
-            const temperatureData = [];
-            const pressureData = [];
-
-            Object.keys(data).forEach(timestamp => {
-                const time = parseInt(timestamp);
-                if (time >= cutoffTime) {
-                    const record = data[timestamp];
-                    // Convert millis() to relative Date for display
-                    const displayTime = currentTime - (maxTimestamp - time);
-                    
-                    if (record.soil_moisture !== undefined) {
-                        moistureData.push({ x: displayTime, y: record.soil_moisture });
-                    }
-                    if (record.temperature !== undefined) {
-                        temperatureData.push({ x: displayTime, y: record.temperature });
-                    }
-                    if (record.pressure !== undefined) {
-                        pressureData.push({ x: displayTime, y: record.pressure });
-                    }
-                }
-            });
-
-            // Sort by timestamp
-            moistureData.sort((a, b) => a.x - b.x);
-            temperatureData.sort((a, b) => a.x - b.x);
-            pressureData.sort((a, b) => a.x - b.x);
-
-            console.log(`📊 Chart data: Moisture=${moistureData.length}, Temp=${temperatureData.length}, Pressure=${pressureData.length}`);
-
-            // Update charts
-            moistureChart.data.datasets[0].data = moistureData;
-            moistureChart.update('none');
-
-            temperatureChart.data.datasets[0].data = temperatureData;
-            temperatureChart.update('none');
-
-            pressureChart.data.datasets[0].data = pressureData;
-            pressureChart.update('none');
-
-            console.log(`✅ Charts updated successfully!`);
-        });
-
-        // Clean up old data (older than 24 hours) every hour
-        setInterval(async () => {
-            try {
-                const historySnapshot = await get(historyRef);
-                const data = historySnapshot.val();
-                if (!data) return;
-
-                const now = Date.now();
-                const twentyFourHoursAgo = now - (24 * 60 * 60 * 1000);
-
-                let deletedCount = 0;
-                const updates = {};
-
-                Object.keys(data).forEach(timestamp => {
-                    if (parseInt(timestamp) < twentyFourHoursAgo) {
-                        updates[timestamp] = null; // Delete old data
-                        deletedCount++;
-                    }
-                });
-
-                if (deletedCount > 0) {
-                    await update(historyRef, updates);
-                    console.log(`🗑️ Deleted ${deletedCount} old records`);
-                }
-            } catch (error) {
-                console.error('Error cleaning old data:', error);
-            }
-        }, 60 * 60 * 1000); // Every hour
-
-        // Initial connection check
-        updateConnectionStatus(false);
-        updateModeUI();
     </script>
 </body>
 </html>

@@ -1,0 +1,23 @@
+{
+  "rules": {
+    "greenhouse": {
+      "sensors": {
+        ".read": true,
+        ".write": true,
+        ".indexOn": ["timestamp"]
+      },
+      "controls": {
+        ".read": true,
+        ".write": true
+      },
+      "status": {
+        ".read": true,
+        ".write": true
+      },
+      "system": {
+        ".read": true,
+        ".write": true
+      }
+    }
+  }
+}

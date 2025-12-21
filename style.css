@@ -308,7 +308,8 @@ water-15s {
     font-weight: bold;
     margin-top: 10px;
     text-align: center;
-    display: none
+    display: none;
+}
 
 .btn-pump-off {
     background: rgba(0, 255, 65, 0.1);

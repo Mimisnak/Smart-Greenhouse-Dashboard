@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Greenhouse Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Smart Greenhouse</h1>
+            <p class="subtitle">Real-time Monitoring & Control</p>
+            <div class="status-indicator">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="connectionStatus">Σύνδεση...</span>
+            </div>
+        </header>
+
+        <main>
+            <!-- Sensor Cards -->
+            <div class="cards-grid">
+                <!-- Temperature Card -->
+                <div class="card">
+                    <div class="card-content">
+                        <h3>Θερμοκρασία</h3>
+                        <div class="value-display">
+                            <span class="value" id="temperature">--</span>
+                            <span class="unit">°C</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pressure Card -->
+                <div class="card">
+                    <div class="card-content">
+                        <h3>Πίεση</h3>
+                        <div class="value-display">
+                            <span class="value" id="pressure">--</span>
+                            <span class="unit">hPa</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Soil Moisture Card -->
+                <div class="card card-large">
+                    <div class="card-content">
+                        <h3>Υγρασία Χώματος</h3>
+                        <div class="value-display">
+                            <span class="value" id="soilMoisture">--</span>
+                            <span class="unit">%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="soilProgress"></div>
+                        </div>
+                        <p class="raw-value">Raw: <span id="soilRaw">--</span></p>
+                    </div>
+                </div>
+
+                <!-- Altitude Card -->
+                <div class="card">
+                    <div class="card-content">
+                        <h3>Υψόμετρο</h3>
+                        <div class="value-display">
+                            <span class="value" id="altitude">--</span>
+                            <span class="unit">m</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Light Sensor Card -->
+                <div class="card">
+                    <div class="card-content">
+                        <h3>Φωτισμός</h3>
+                        <div class="value-display">
+                            <span class="value" id="light">--</span>
+                            <span class="unit">lux</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Water Pump Control Card -->
+                <div class="card card-large card-control">
+                    <div class="card-content">
+                        <h3>Έλεγχος Αντλίας</h3>
+                        
+                        <!-- Auto/Manual Mode Toggle -->
+                        <div class="mode-toggle">
+                            <button class="btn-mode" id="manualBtn" onclick="setMode('manual')">Manual</button>
+                            <button class="btn-mode" id="autoBtn" onclick="setMode('auto')">Auto</button>
+                        </div>
+                        
+                        <div class="status-row">
+                            <div class="pump-status" id="pumpStatus">OFF</div>
+                            
+                            <!-- Manual Control -->
+                            <div id="manualControls">
+                                <button class="btn-water-15s" onclick="water15s()">
+                                    Πότισμα 15s
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Auto Mode Info -->
+                        <div id="autoInfo" style="display:none;" class="auto-mode-container">
+                            <div class="auto-hint">Αυτόματο πότισμα όταν υγρασία &lt;</div>
+                            <div class="threshold-controls">
+                                <input type="number" id="moistureThreshold" value="30" min="0" max="100" class="threshold-input">
+                                <span class="threshold-unit">%</span>
+                                <button class="btn-threshold" onclick="updateThreshold()">Ενημέρωση</button>
+                            </div>
+                        </div>
+                        
+                        <p class="timer-display" id="timerDisplay"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Last Update Info -->
+            <div class="info-box">
+                <p>Τελευταία Ενημέρωση: <span id="lastUpdate">--</span></p>
+                <p>Επόμενη σε: <span id="nextUpdate">30</span>s</p>
+            </div>
+        </main>
+
+        <footer>
+            <p>ESP32-S3 Smart Greenhouse System | Powered by Firebase</p>
+        </footer>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getDatabase, ref, onValue, set } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+        import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDwwszw4AapfTp_dkdli48vsxOZXkZwqfo",
+            authDomain: "smartgreenhouse-fb494.firebaseapp.com",
+            databaseURL: "https://smartgreenhouse-fb494-default-rtdb.firebaseio.com",
+            projectId: "smartgreenhouse-fb494",
+            storageBucket: "smartgreenhouse-fb494.firebasestorage.app",
+            messagingSenderId: "655885291578",
+            appId: "1:655885291578:web:cd006776213994db2ea503"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+        const auth = getAuth(app);
+
+        // Global state
+        let pumpState = 0;
+        let countdown = 5;
+        let isAuthenticated = false;
+
+        // Authenticate anonymously
+        signInAnonymously(auth)
+            .then(() => {
+                console.log('✅ Authenticated successfully');
+            })
+            .catch((error) => {
+                console.error('❌ Authentication failed:', error);
+                alert('Σφάλμα σύνδεσης! Παρακαλώ ανανέωσε τη σελίδα.');
+            });
+
+        // Listen to auth state
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                isAuthenticated = true;
+                console.log('🔐 User authenticated:', user.uid);
+            } else {
+                isAuthenticated = false;
+                updateConnectionStatus(false);
+            }
+        });
+
+        // Update connection status
+        function updateConnectionStatus(connected) {
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('connectionStatus');
+            if (connected) {
+                statusDot.className = 'status-dot online';
+                statusText.textContent = 'Συνδεδεμένο ✓';
+            } else {
+                statusDot.className = 'status-dot offline';
+                statusText.textContent = 'Αποσυνδεδεμένο ✗';
+            }
+        }
+
+        // Listen to sensor data
+        const sensorsRef = ref(database, 'greenhouse/sensors');
+        onValue(sensorsRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                updateConnectionStatus(true);
+                
+                // Update sensor values
+                document.getElementById('temperature').textContent = data.temperature ? data.temperature.toFixed(1) : '--';
+                document.getElementById('pressure').textContent = data.pressure ? data.pressure.toFixed(1) : '--';
+                document.getElementById('altitude').textContent = data.altitude ? data.altitude.toFixed(0) : '--';
+                document.getElementById('light').textContent = data.light || '--';
+                document.getElementById('soilMoisture').textContent = (data.soil_moisture !== undefined && data.soil_moisture !== null) ? data.soil_moisture : '--';
+                document.getElementById('soilRaw').textContent = data.soil_raw || '--';
+                
+                // Update soil moisture progress bar
+                const soilProgress = document.getElementById('soilProgress');
+                const moisture = (data.soil_moisture !== undefined && data.soil_moisture !== null) ? data.soil_moisture : 0;
+                soilProgress.style.width = moisture + '%';
+                
+                // Color based on moisture level
+                if (moisture < 30) {
+                    soilProgress.style.background = 'linear-gradient(90deg, #ff0051 0%, #ff6b9d 100%)';
+                } else if (moisture < 60) {
+                    soilProgress.style.background = 'linear-gradient(90deg, #ffbd2e 0%, #ffd96a 100%)';
+                } else {
+                    soilProgress.style.background = 'linear-gradient(90deg, #00ff41 0%, #64f4ac 100%)';
+                }
+                
+                // Update last update time
+                const now = new Date();
+                document.getElementById('lastUpdate').textContent = now.toLocaleTimeString('el-GR');
+                
+                // Reset countdown
+                countdown = 5;
+            } else {
+                updateConnectionStatus(false);
+            }
+        });
+
+        // Listen to auto mode
+        const autoModeRef = ref(database, 'greenhouse/controls/auto_mode');
+        let currentMode = 'manual';
+        onValue(autoModeRef, (snapshot) => {
+            const autoEnabled = snapshot.val() || 0;
+            currentMode = autoEnabled === 1 ? 'auto' : 'manual';
+            updateModeUI();
+        });
+
+        // Listen to moisture threshold
+        const thresholdRef = ref(database, 'greenhouse/controls/moisture_threshold');
+        onValue(thresholdRef, (snapshot) => {
+            const threshold = snapshot.val() || 30;
+            document.getElementById('moistureThreshold').value = threshold;
+            console.log('Threshold loaded:', threshold);
+        });
+
+        // Listen to pump status
+        const statusRef = ref(database, 'greenhouse/status/relay_state');
+        onValue(statusRef, (snapshot) => {
+            pumpState = snapshot.val() || 0;
+            updatePumpUI();
+        });
+
+        // Listen to pump timer
+        const timerRef = ref(database, 'greenhouse/status/pump_timer_remaining');
+        onValue(timerRef, (snapshot) => {
+            const remaining = snapshot.val() || 0;
+            updateTimerUI(remaining);
+        });
+
+        // Update mode UI
+        function updateModeUI() {
+            const manualBtn = document.getElementById('manualBtn');
+            const autoBtn = document.getElementById('autoBtn');
+            const manualControls = document.getElementById('manualControls');
+            const autoInfo = document.getElementById('autoInfo');
+            
+            if (currentMode === 'auto') {
+                manualBtn.classList.remove('active');
+                autoBtn.classList.add('active');
+                manualControls.style.display = 'none';
+                autoInfo.style.display = 'block';
+            } else {
+                manualBtn.classList.add('active');
+                autoBtn.classList.remove('active');
+                manualControls.style.display = 'block';
+                autoInfo.style.display = 'none';
+            }
+        }
+
+        // Update pump UI
+        function updatePumpUI() {
+            const pumpStatus = document.getElementById('pumpStatus');
+            
+            if (pumpState === 1) {
+                pumpStatus.textContent = 'ON';
+                pumpStatus.className = 'pump-status on';
+            } else {
+                pumpStatus.textContent = 'OFF';
+                pumpStatus.className = 'pump-status';
+            }
+        }
+
+        // Update timer UI
+        function updateTimerUI(seconds) {
+            const timerDisplay = document.getElementById('timerDisplay');
+            if (seconds > 0) {
+                timerDisplay.textContent = `Χρόνος: ${seconds}s`;
+                timerDisplay.style.display = 'block';
+            } else {
+                timerDisplay.style.display = 'none';
+            }
+        }
+
+        // Set mode
+        window.setMode = async function(mode) {
+            try {
+                const value = mode === 'auto' ? 1 : 0;
+                await set(autoModeRef, value);
+                console.log('Mode set to:', mode);
+            } catch (error) {
+                console.error('Error setting mode:', error);
+                alert('Σφάλμα! Δεν μπόρεσε να αλλάξει η λειτουργία.');
+            }
+        };
+
+        // Water for 15 seconds
+        window.water15s = async function() {
+            try {
+                const triggerRef = ref(database, 'greenhouse/controls/water_15s');
+                await set(triggerRef, 1);
+                console.log('15s watering triggered');
+            } catch (error) {
+                console.error('Error triggering watering:', error);
+                alert('Σφάλμα! Δεν μπόρεσε να ξεκινήσει το πότισμα.');
+            }
+        };
+
+        // Update moisture threshold
+        window.updateThreshold = async function() {
+            try {
+                const threshold = parseInt(document.getElementById('moistureThreshold').value);
+                if (threshold < 0 || threshold > 100) {
+                    alert('Η τιμή πρέπει να είναι μεταξύ 0-100%');
+                    return;
+                }
+                const thresholdRef = ref(database, 'greenhouse/controls/moisture_threshold');
+                await set(thresholdRef, threshold);
+                console.log('Threshold updated to:', threshold);
+                alert(`Όριο υγρασίας ενημερώθηκε σε ${threshold}%`);
+            } catch (error) {
+                console.error('Error updating threshold:', error);
+                alert('Σφάλμα! Δεν μπόρεσε να ενημερωθεί το όριο.');
+            }
+        };
+
+        // Countdown timer
+        setInterval(() => {
+            countdown--;
+            if (countdown <= 0) {
+                countdown = 5;
+            }
+            document.getElementById('nextUpdate').textContent = countdown;
+        }, 1000);
+
+        // Initial connection check
+        updateConnectionStatus(false);
+        updateModeUI();
+    </script>
+</body>
+</html>

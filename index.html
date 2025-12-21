@@ -238,6 +238,14 @@
             updateModeUI();
         });
 
+        // Listen to moisture threshold
+        const thresholdRef = ref(database, 'greenhouse/controls/moisture_threshold');
+        onValue(thresholdRef, (snapshot) => {
+            const threshold = snapshot.val() || 30;
+            document.getElementById('moistureThreshold').value = threshold;
+            console.log('Threshold loaded:', threshold);
+        });
+
         // Listen to pump status
         const statusRef = ref(database, 'greenhouse/status/relay_state');
         onValue(statusRef, (snapshot) => {

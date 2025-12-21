@@ -605,6 +605,7 @@
                 now.toLocaleTimeString('el-GR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
             // Καταργούμε τον anti-duplicate έλεγχο: πάντα προσθέτουμε νέο σημείο
+            console.log('DEBUG soil_moisture:', data.soil_moisture, typeof data.soil_moisture);
             chartData.labels.push(timeLabel);
             chartData.moisture.push(Number(data.soil_moisture) || 0);
             chartData.temperature.push(Number(data.temperature) || 0);

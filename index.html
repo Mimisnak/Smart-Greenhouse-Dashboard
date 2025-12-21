@@ -198,24 +198,13 @@
 
         // Update connection status
         function updateConnectionStatus(connected) {
-            const statusDot = document.getElementById('statusDot');
-            const statusText = document.getElementById('connectionStatus');
-            if (connected) {
-                statusDot.className = 'status-dot online';
-                statusText.textContent = 'Firebase';
-            } else {
-                statusDot.className = 'status-dot offline';
-                statusText.textContent = 'Firebase';
-            }
+            // Status indicators removed from this version
+            console.log(connected ? '✅ Connected to Firebase' : '❌ Disconnected from Firebase');
         }
         
         // Flash Firebase indicator
         function flashFirebaseActivity() {
-            const statusDot = document.getElementById('statusDot');
-            statusDot.classList.add('firebase-active');
-            setTimeout(() => {
-                statusDot.classList.remove('firebase-active');
-            }, 300);
+            // Visual indicator removed from this version
         }
 
         // Listen to sensor data

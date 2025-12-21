@@ -373,6 +373,7 @@ header h1 {
     border-radius: 8px;
     background: rgba(100, 244, 172, 0.05);
     transition: opacity 0.3s;
+    display: block;
 }
 
 .threshold-controls {
@@ -614,13 +615,6 @@ footer::before {
     51%, 100% { opacity: 0; }
 }
 
-.hide-auto-info {
-    display: none !important;
-    visibility: hidden;
-    opacity: 0;
-    transition: opacity 0.3s;
-}
-
 .auto-mode-container {
     margin: 20px 0;
     padding: 15px;
@@ -628,6 +622,7 @@ footer::before {
     border-radius: 8px;
     background: rgba(100, 244, 172, 0.05);
     transition: opacity 0.3s;
+    display: block;
 }
 
 .copyright-info {

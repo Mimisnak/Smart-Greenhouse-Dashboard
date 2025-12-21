@@ -3,100 +3,144 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Greenhouse Dashboard</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <title>Smart Greenhouse Live</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+    <style>
+        /* Hacker / Terminal Theme */
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+        :root { --bg: #050505; --card: #0a0a0a; --green: #00ff41; --blue: #008F11; --text: #e0e0e0; }
+        
+        body { background: var(--bg); color: var(--text); font-family: 'Share Tech Mono', monospace; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .container { width: 100%; max-width: 1000px; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; }
+        
+        h1 { color: var(--green); text-shadow: 0 0 10px var(--green); border-bottom: 2px solid var(--blue); padding-bottom: 10px; width: 100%; text-align: center; }
+        
+        .card { background: var(--card); border: 1px solid var(--blue); padding: 15px; border-radius: 5px; text-align: center; box-shadow: 0 0 5px rgba(0, 255, 65, 0.1); }
+        .title { color: #888; font-size: 0.9em; margin-bottom: 5px; }
+        .value { font-size: 2.5em; color: var(--green); text-shadow: 0 0 5px var(--green); }
+        .unit { font-size: 1em; color: #666; }
+        
+        .full { grid-column: 1 / -1; }
+        .chart-box { position: relative; height: 350px; width: 100%; }
+        
+        .btn { background: transparent; border: 1px solid var(--green); color: var(--green); padding: 10px 20px; cursor: pointer; font-family: inherit; margin: 5px; transition: 0.2s; }
+        .btn:hover { background: var(--green); color: black; box-shadow: 0 0 10px var(--green); }
+        .btn-off { border-color: #ff0055; color: #ff0055; }
+        .btn-off:hover { background: #ff0055; color: white; box-shadow: 0 0 10px #ff0055; }
+        
+        #status { position: fixed; top: 10px; right: 10px; padding: 5px 10px; border: 1px solid var(--green); border-radius: 15px; font-size: 0.8em; background: rgba(0,0,0,0.8); }
+    </style>
 </head>
 <body>
+
+    <div id="status">CONNECTING...</div>
+    <h1>🌱 Smart Greenhouse Monitor</h1>
+
     <div class="container">
-        <header>
-            <h1>Smart Greenhouse</h1>
-            <p class="subtitle">Real-time Monitoring & Control</p>
-            <div class="status-indicator">
-                <span class="status-dot" id="statusDot"></span>
-                <span id="connectionStatus">Σύνδεση...</span>
-            </div>
-        </header>
+        <div class="card">
+            <div class="title">ΘΕΡΜΟΚΡΑΣΙΑ</div>
+            <div><span class="value" id="temp">--</span> <span class="unit">°C</span></div>
+        </div>
+        <div class="card">
+            <div class="title">ΥΓΡΑΣΙΑ ΕΔΑΦΟΥΣ</div>
+            <div><span class="value" id="soil">--</span> <span class="unit">%</span></div>
+        </div>
+        <div class="card">
+            <div class="title">ΦΩΤΙΣΜΟΣ</div>
+            <div><span class="value" id="light">--</span> <span class="unit">lx</span></div>
+        </div>
 
-        <main>
-            <!-- Sensor Cards -->
-            <div class="cards-grid">
-                <!-- Temperature Card -->
-                <div class="card">
-                    <div class="card-content">
-                        <h3>Θερμοκρασία</h3>
-                        <div class="value-display">
-                            <span class="value" id="temperature">--</span>
-                            <span class="unit">°C</span>
-                        </div>
-                    </div>
-                </div>
+        <div class="card">
+            <div class="title">ΑΝΤΛΙΑ ΝΕΡΟΥ</div>
+            <button class="btn" onclick="togglePump(true)">ON</button>
+            <button class="btn btn-off" onclick="togglePump(false)">OFF</button>
+            <div style="margin-top:5px; font-size:0.8em;">Status: <span id="pumpStatus">...</span></div>
+        </div>
 
-                <!-- Pressure Card -->
-                <div class="card">
-                    <div class="card-content">
-                        <h3>Πίεση</h3>
-                        <div class="value-display">
-                            <span class="value" id="pressure">--</span>
-                            <span class="unit">hPa</span>
-                        </div>
-                    </div>
-                </div>
+        <div class="card full">
+            <div class="title">LIVE DIAGRAM (REAL-TIME)</div>
+            <div class="chart-box"><canvas id="myChart"></canvas></div>
+        </div>
+    </div>
 
-                <!-- Soil Moisture Card -->
-                <div class="card card-large">
-                    <div class="card-content">
-                        <h3>Υγρασία Χώματος</h3>
-                        <div class="value-display">
-                            <span class="value" id="soilMoisture">--</span>
-                            <span class="unit">%</span>
-                        </div>
-                        <div class="progress-bar">
-                            <div class="progress-fill" id="soilProgress"></div>
-                        </div>
-                        <p class="raw-value">Raw: <span id="soilRaw">--</span></p>
-                    </div>
-                </div>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+        import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
 
-                <!-- Altitude Card -->
-                <div class="card">
-                    <div class="card-content">
-                        <h3>Υψόμετρο</h3>
-                        <div class="value-display">
-                            <span class="value" id="altitude">--</span>
-                            <span class="unit">m</span>
-                        </div>
-                    </div>
-                </div>
+        // ⚠️ ΒΑΛΕ ΤΑ ΚΛΕΙΔΙΑ ΣΟΥ ΕΔΩ ⚠️
+        const firebaseConfig = {
+            apiKey: "AIzaSyDxxxxxxxxxxxxxxxxxxxxxxxx", 
+            authDomain: "xxxx.firebaseapp.com",
+            databaseURL: "https://xxxx-default-rtdb.firebaseio.com",
+            projectId: "xxxx",
+            storageBucket: "xxxx",
+            messagingSenderId: "xxxx",
+            appId: "xxxx"
+        };
 
-                <!-- Light Sensor Card -->
-                <div class="card">
-                    <div class="card-content">
-                        <h3>Φωτισμός</h3>
-                        <div class="value-display">
-                            <span class="value" id="light">--</span>
-                            <span class="unit">lux</span>
-                        </div>
-                    </div>
-                </div>
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
 
-                <!-- Water Pump Control Card -->
-                <div class="card card-large card-control">
-                    <div class="card-content">
-                        <h3>Έλεγχος Αντλίας</h3>
-                        
-                        <!-- Auto/Manual Mode Toggle -->
-                        <div class="mode-toggle">
-                            <button class="btn-mode" id="manualBtn" onclick="setMode('manual')">Manual</button>
-                            <button class="btn-mode" id="autoBtn" onclick="setMode('auto')">Auto</button>
-                        </div>
-                        
-                        <div class="status-row">
-                            <div class="pump-status" id="pumpStatus">OFF</div>
-                            
-                            <!-- Manual Control -->
-                            <div id="manualControls">
+        // --- CHART CONFIG ---
+        const ctx = document.getElementById('myChart').getContext('2d');
+        const myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                datasets: [
+                    { label: 'Temp (°C)', borderColor: '#00ff41', data: [], tension: 0.4 },
+                    { label: 'Soil (%)', borderColor: '#00ccff', data: [], tension: 0.4 }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, animation: false,
+                scales: {
+                    x: { type: 'time', time: { unit: 'second' }, grid: { color: '#222' } },
+                    y: { grid: { color: '#222' } }
+                }
+            }
+        });
+
+        // --- READ DATA ---
+        const sensorsRef = ref(db, 'greenhouse/sensors');
+        onValue(sensorsRef, (snapshot) => {
+            const data = snapshot.val();
+            document.getElementById('status').innerText = "ONLINE ✓";
+
+            if (data) {
+                // Διόρθωση ονομάτων: Το ESP στέλνει soil_moisture, όχι soil!
+                const t = data.temperature ? data.temperature.toFixed(1) : "--";
+                const s = data.soil_moisture !== undefined ? data.soil_moisture : "--";
+                const l = data.light !== undefined ? data.light : "--";
+
+                document.getElementById('temp').innerText = t;
+                document.getElementById('soil').innerText = s;
+                document.getElementById('light').innerText = l;
+
+                // Ενημέρωση Γραφήματος
+                const now = Date.now();
+                if (myChart.data.datasets[0].data.length > 50) { // Κράτα τα 50 τελευταία
+                    myChart.data.datasets[0].data.shift();
+                    myChart.data.datasets[1].data.shift();
+                }
+                
+                if (data.temperature) myChart.data.datasets[0].data.push({x: now, y: data.temperature});
+                if (data.soil_moisture !== undefined) myChart.data.datasets[1].data.push({x: now, y: data.soil_moisture});
+                
+                myChart.update();
+            }
+        });
+
+        // --- PUMP CONTROL ---
+        window.togglePump = (state) => set(ref(db, 'greenhouse/controls/water_pump'), state ? 1 : 0);
+        onValue(ref(db, 'greenhouse/controls/water_pump'), (snap) => {
+            document.getElementById('pumpStatus').innerText = snap.val() == 1 ? "ON 🟢" : "OFF 🔴";
+        });
+    </script>
+</body>
+</html>
                                 <button class="btn-water-15s" onclick="water15s()">
                                     Πότισμα 15s
                                 </button>

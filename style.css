@@ -270,20 +270,42 @@ header h1 {
     box-shadow: 0 0 15px rgba(0, 255, 65, 0.4);
 }
 
+/* Status Row - OFF and Button side by side */
+.status-row {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin: 15px 0;
+    flex-wrap: wrap;
+}
+
+#manualControls {
+    flex: 0 0 auto;
+}
+
 .pump-status {
     font-size: 2em;
     font-weight: bold;
-    margin: 15px 0;
     padding: 10px 20px;
     border-radius: 5px;
-    display: inline-block;
     border: 2px solid;
     font-family: 'Courier New', monospace;
+    flex: 0 0 auto;
+    cursor: default;
+    user-select: none;
+    pointer-events: none;
 }
-water-15s {
+.btn-water-15s {
+    font-size: 1.5em;
+    font-weight: bold;
+    padding: 10px 20px;
+    border-radius: 5px;
+    border: 2px solid #00ff41;
     background: rgba(0, 255, 65, 0.1);
     color: #00ff41;
-    border-color: #00ff41;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: 'Courier New', monospace;
 }
 
 .btn-water-15s:hover {

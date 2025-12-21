@@ -391,6 +391,52 @@
             labels: []
         };
 
+        // Load saved data from localStorage
+        function loadChartData() {
+            try {
+                const saved = localStorage.getItem('greenhouseChartData');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    chartData.moisture = parsed.moisture || [];
+                    chartData.temperature = parsed.temperature || [];
+                    chartData.pressure = parsed.pressure || [];
+                    chartData.labels = parsed.labels || [];
+                    
+                    // Remove data older than 24 hours
+                    const now = Date.now();
+                    const cutoff = now - (24 * 60 * 60 * 1000);
+                    
+                    chartData.labels = chartData.labels.filter((label, index) => {
+                        const timestamp = new Date(label.split(' ')[0] + ' ' + label.split(' ')[1]).getTime();
+                        if (isNaN(timestamp) || timestamp < cutoff) return false;
+                        return true;
+                    });
+                    
+                    // Trim other arrays to match labels length
+                    const length = chartData.labels.length;
+                    chartData.moisture = chartData.moisture.slice(-length);
+                    chartData.temperature = chartData.temperature.slice(-length);
+                    chartData.pressure = chartData.pressure.slice(-length);
+                    
+                    console.log(`📊 Loaded ${chartData.labels.length} data points from localStorage`);
+                }
+            } catch (error) {
+                console.error('Error loading chart data:', error);
+            }
+        }
+
+        // Save data to localStorage
+        function saveChartData() {
+            try {
+                localStorage.setItem('greenhouseChartData', JSON.stringify(chartData));
+            } catch (error) {
+                console.error('Error saving chart data:', error);
+            }
+        }
+
+        // Load saved data on startup
+        loadChartData();
+
         // Chart configuration
         const chartOptions = {
             responsive: true,
@@ -426,10 +472,10 @@
         const moistureChart = new Chart(document.getElementById('moistureChart'), {
             type: 'line',
             data: {
-                labels: [],
+                labels: chartData.labels,
                 datasets: [{
                     label: 'Υγρασία %',
-                    data: [],
+                    data: chartData.moisture,
                     borderColor: '#00ff41',
                     backgroundColor: 'rgba(0, 255, 65, 0.1)',
                     borderWidth: 2,
@@ -453,10 +499,10 @@
         const temperatureChart = new Chart(document.getElementById('temperatureChart'), {
             type: 'line',
             data: {
-                labels: [],
+                labels: chartData.labels,
                 datasets: [{
                     label: 'Θερμοκρασία °C',
-                    data: [],
+                    data: chartData.temperature,
                     borderColor: '#ff6b9d',
                     backgroundColor: 'rgba(255, 107, 157, 0.1)',
                     borderWidth: 2,
@@ -470,7 +516,7 @@
         const pressureChart = new Chart(document.getElementById('pressureChart'), {
             type: 'line',
             data: {
-                labels: [],
+                labels: chartData.labels,
                 datasets: [{
                     label: 'Πίεση hPa',
                     data: [],
@@ -502,6 +548,9 @@
                 chartData.temperature.shift();
                 chartData.pressure.shift();
             }
+            
+            // Save to localStorage
+            saveChartData();
             
             // Update chart data
             moistureChart.data.labels = chartData.labels;

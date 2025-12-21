@@ -426,15 +426,17 @@ void uploadSensorsToFirebase() {
                 int type = 0;
                 String key, value;
                 historyJson.iteratorGet(i, type, key, value);
-                String path = String(historyPath) + "/" + key;
-                historyJson.get(entry, path + "/timestamp");
+                String keyStr = String(key);
+                String path = String(historyPath) + String("/") + keyStr;
+                historyJson.get(entry, path + String("/timestamp"));
                 if (entry.type == "int" && entry.intValue < cutoff) {
                     keysToDelete.push_back(key);
                 }
             }
             historyJson.iteratorEnd();
             for (const auto& key : keysToDelete) {
-                String path = String(historyPath) + "/" + key;
+                String keyStr = String(key);
+                String path = String(historyPath) + String("/") + keyStr;
                 Firebase.RTDB.deleteNode(&fbdo, path);
             }
         }

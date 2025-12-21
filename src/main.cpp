@@ -423,7 +423,9 @@ void uploadSensorsToFirebase() {
             size_t count = historyJson.iteratorBegin();
             FirebaseJsonData entry;
             for (size_t i = 0; i < count; i++) {
-                String key = historyJson.iteratorGet(i, "key");
+                int type = 0;
+                String key, value;
+                historyJson.iteratorGet(i, type, key, value);
                 historyJson.get(entry, key + "/timestamp");
                 if (entry.type == "int" && entry.intValue < cutoff) {
                     keysToDelete.push_back(key);

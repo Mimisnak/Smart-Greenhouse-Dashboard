@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Greenhouse Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌱 Smart Greenhouse</h1>
+            <p class="subtitle">Real-time Monitoring & Control</p>
+            <div class="status-indicator">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="connectionStatus">Σύνδεση...</span>
+            </div>
+        </header>
+
+        <main>
+            <!-- Sensor Cards -->
+            <div class="cards-grid">
+                <!-- Temperature Card -->
+                <div class="card">
+                    <div class="card-icon">🌡️</div>
+                    <div class="card-content">
+                        <h3>Θερμοκρασία</h3>
+                        <p class="value" id="temperature">--</p>
+                        <p class="unit">°C</p>
+                    </div>
+                </div>
+
+                <!-- Pressure Card -->
+                <div class="card">
+                    <div class="card-icon">🔴</div>
+                    <div class="card-content">
+                        <h3>Πίεση</h3>
+                        <p class="value" id="pressure">--</p>
+                        <p class="unit">hPa</p>
+                    </div>
+                </div>
+
+                <!-- Altitude Card -->
+                <div class="card">
+                    <div class="card-icon">⛰️</div>
+                    <div class="card-content">
+                        <h3>Υψόμετρο</h3>
+                        <p class="value" id="altitude">--</p>
+                        <p class="unit">m</p>
+                    </div>
+                </div>
+
+                <!-- Light Card -->
+                <div class="card">
+                    <div class="card-icon">💡</div>
+                    <div class="card-content">
+                        <h3>Φωτισμός</h3>
+                        <p class="value" id="light">--</p>
+                        <p class="unit">lux</p>
+                    </div>
+                </div>
+
+                <!-- Soil Moisture Card -->
+                <div class="card card-large">
+                    <div class="card-icon">💧</div>
+                    <div class="card-content">
+                        <h3>Υγρασία Χώματος</h3>
+                        <p class="value" id="soilMoisture">--</p>
+                        <p class="unit">%</p>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="soilProgress"></div>
+                        </div>
+                        <p class="raw-value">Raw: <span id="soilRaw">--</span></p>
+                    </div>
+                </div>
+
+                <!-- Water Pump Control Card -->
+                <div class="card card-large card-control">
+                    <div class="card-icon">🚰</div>
+                    <div class="card-content">
+                        <h3>Αντλία Νερού</h3>
+                        <div class="pump-status" id="pumpStatus">OFF</div>
+                        <button class="btn-pump" id="pumpBtn" onclick="togglePump()">
+                            <span id="pumpBtnText">Ενεργοποίηση</span>
+                        </button>
+                        <p class="pump-hint">Κλικ για να ενεργοποιήσεις/απενεργοποιήσεις</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Last Update Info -->
+            <div class="info-box">
+                <p>📊 Τελευταία Ενημέρωση: <span id="lastUpdate">--</span></p>
+                <p>⏱️ Επόμενη σε: <span id="nextUpdate">30</span>s</p>
+            </div>
+        </main>
+
+        <footer>
+            <p>ESP32-S3 Smart Greenhouse System | Powered by Firebase</p>
+        </footer>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getDatabase, ref, onValue, set } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+
+        // Firebase Configuration - ΑΛΛΑΞΕ ΜΕ ΤΑ ΔΙΚΑ ΣΟΥ!
+        const firebaseConfig = {
+            apiKey: "AIz4syfDCwwz-w4a8pFTp_dkLd4BvxDZXkZwfgQ",
+            authDomain: "smartgreenhouse-fb494.firebaseapp.com",
+            databaseURL: "https://smartgreenhouse-fb494-default-rtdb.firebaseio.com",
+            projectId: "smartgreenhouse-fb494",
+            storageBucket: "smartgreenhouse-fb494.firebasestorage.app",
+            messagingSenderId: "465885829157",
+            appId: "1:465885829157:web:ca8b6772e139994dd2ea503"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
+        // Global state
+        let pumpState = 0;
+        let countdown = 30;
+
+        // Update connection status
+        function updateConnectionStatus(connected) {
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('connectionStatus');
+            if (connected) {
+                statusDot.className = 'status-dot online';
+                statusText.textContent = 'Συνδεδεμένο ✓';
+            } else {
+                statusDot.className = 'status-dot offline';
+                statusText.textContent = 'Αποσυνδεδεμένο ✗';
+            }
+        }
+
+        // Listen to sensor data
+        const sensorsRef = ref(database, 'greenhouse/sensors');
+        onValue(sensorsRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                updateConnectionStatus(true);
+                
+                // Update sensor values
+                document.getElementById('temperature').textContent = data.temperature ? data.temperature.toFixed(1) : '--';
+                document.getElementById('pressure').textContent = data.pressure ? data.pressure.toFixed(1) : '--';
+                document.getElementById('altitude').textContent = data.altitude ? data.altitude.toFixed(1) : '--';
+                document.getElementById('light').textContent = data.light || '--';
+                document.getElementById('soilMoisture').textContent = data.soil_moisture || '--';
+                document.getElementById('soilRaw').textContent = data.soil_raw || '--';
+                
+                // Update soil moisture progress bar
+                const soilProgress = document.getElementById('soilProgress');
+                const moisture = data.soil_moisture || 0;
+                soilProgress.style.width = moisture + '%';
+                
+                // Color based on moisture level
+                if (moisture < 30) {
+                    soilProgress.style.background = '#ef4444'; // Red
+                } else if (moisture < 60) {
+                    soilProgress.style.background = '#f59e0b'; // Orange
+                } else {
+                    soilProgress.style.background = '#10b981'; // Green
+                }
+                
+                // Update last update time
+                const now = new Date();
+                document.getElementById('lastUpdate').textContent = now.toLocaleTimeString('el-GR');
+                
+                // Reset countdown
+                countdown = 30;
+            } else {
+                updateConnectionStatus(false);
+            }
+        });
+
+        // Listen to pump control
+        const pumpRef = ref(database, 'greenhouse/controls/water_pump');
+        onValue(pumpRef, (snapshot) => {
+            pumpState = snapshot.val() || 0;
+            updatePumpUI();
+        });
+
+        // Update pump UI
+        function updatePumpUI() {
+            const pumpStatus = document.getElementById('pumpStatus');
+            const pumpBtn = document.getElementById('pumpBtn');
+            const pumpBtnText = document.getElementById('pumpBtnText');
+            
+            if (pumpState === 1) {
+                pumpStatus.textContent = 'ON';
+                pumpStatus.className = 'pump-status pump-on';
+                pumpBtn.className = 'btn-pump btn-pump-on';
+                pumpBtnText.textContent = 'Απενεργοποίηση';
+            } else {
+                pumpStatus.textContent = 'OFF';
+                pumpStatus.className = 'pump-status pump-off';
+                pumpBtn.className = 'btn-pump btn-pump-off';
+                pumpBtnText.textContent = 'Ενεργοποίηση';
+            }
+        }
+
+        // Toggle pump
+        window.togglePump = async function() {
+            const newState = pumpState === 1 ? 0 : 1;
+            try {
+                await set(pumpRef, newState);
+                console.log('Pump toggled:', newState);
+            } catch (error) {
+                console.error('Error toggling pump:', error);
+                alert('Σφάλμα! Δεν μπόρεσε να αλλάξει η κατάσταση της αντλίας.');
+            }
+        };
+
+        // Countdown timer
+        setInterval(() => {
+            countdown--;
+            if (countdown <= 0) {
+                countdown = 30;
+            }
+            document.getElementById('nextUpdate').textContent = countdown;
+        }, 1000);
+
+        // Initial connection check
+        updateConnectionStatus(false);
+    </script>
+</body>
+</html>

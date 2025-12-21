@@ -477,30 +477,44 @@
         const historyRef = ref(database, 'greenhouse/history');
         onValue(historyRef, (snapshot) => {
             const data = snapshot.val();
-            if (!data) return;
+            
+            console.log('📊 History data received:', data ? Object.keys(data).length + ' records' : 'No data');
+            
+            if (!data) {
+                console.warn('⚠️ No history data available yet. ESP32 needs to run for a while.');
+                return;
+            }
 
-            // Get current time and 24 hours ago
-            const now = Date.now();
-            const twentyFourHoursAgo = now - (24 * 60 * 60 * 1000);
+            // Convert millis() timestamps to relative time
+            const timestamps = Object.keys(data).map(t => parseInt(t));
+            const maxTimestamp = Math.max(...timestamps);
+            const currentTime = Date.now();
+            
+            console.log(`📊 Latest timestamp: ${maxTimestamp}, Oldest: ${Math.min(...timestamps)}`);
 
-            // Filter data for last 24 hours
+            // Filter data for last 24 hours of ESP32 runtime (86400000 ms)
+            const twentyFourHours = 24 * 60 * 60 * 1000;
+            const cutoffTime = maxTimestamp - twentyFourHours;
+
             const moistureData = [];
             const temperatureData = [];
             const pressureData = [];
 
             Object.keys(data).forEach(timestamp => {
                 const time = parseInt(timestamp);
-                if (time >= twentyFourHoursAgo) {
+                if (time >= cutoffTime) {
                     const record = data[timestamp];
+                    // Convert millis() to relative Date for display
+                    const displayTime = currentTime - (maxTimestamp - time);
                     
                     if (record.soil_moisture !== undefined) {
-                        moistureData.push({ x: time, y: record.soil_moisture });
+                        moistureData.push({ x: displayTime, y: record.soil_moisture });
                     }
                     if (record.temperature !== undefined) {
-                        temperatureData.push({ x: time, y: record.temperature });
+                        temperatureData.push({ x: displayTime, y: record.temperature });
                     }
                     if (record.pressure !== undefined) {
-                        pressureData.push({ x: time, y: record.pressure });
+                        pressureData.push({ x: displayTime, y: record.pressure });
                     }
                 }
             });
@@ -509,6 +523,8 @@
             moistureData.sort((a, b) => a.x - b.x);
             temperatureData.sort((a, b) => a.x - b.x);
             pressureData.sort((a, b) => a.x - b.x);
+
+            console.log(`📊 Chart data: Moisture=${moistureData.length}, Temp=${temperatureData.length}, Pressure=${pressureData.length}`);
 
             // Update charts
             moistureChart.data.datasets[0].data = moistureData;
@@ -520,7 +536,7 @@
             pressureChart.data.datasets[0].data = pressureData;
             pressureChart.update('none');
 
-            console.log(`📊 Charts updated: ${moistureData.length} data points`);
+            console.log(`✅ Charts updated successfully!`);
         });
 
         // Clean up old data (older than 24 hours) every hour

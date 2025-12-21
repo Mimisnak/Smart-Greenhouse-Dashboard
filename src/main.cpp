@@ -78,6 +78,10 @@ bool pumpTimerActive = false;
 unsigned long lastAutoWatering = 0;
 #define AUTO_WATERING_COOLDOWN 5000  // 5 seconds cooldown for TESTING (change back to 300000 for production!)
 
+// History upload
+unsigned long lastHistoryUpload = 0;
+#define HISTORY_UPLOAD_INTERVAL 30000  // Upload to Firebase history every 30 seconds
+
 // ========== SENSOR DATA STRUCTURE ==========
 struct SensorData {
     float temperature;
@@ -426,6 +430,19 @@ void uploadSensorsToFirebase() {
     
     if (success) {
         Serial.println("[OK] All sensor data uploaded successfully!");
+    }
+    
+    // Upload to history every 30 seconds
+    if (millis() - lastHistoryUpload >= HISTORY_UPLOAD_INTERVAL) {
+        lastHistoryUpload = millis();
+        String historyPath = "/greenhouse/history/" + String(millis());
+        
+        Firebase.RTDB.setInt(&fbdo, historyPath + "/moisture", sensors.soilMoisture);
+        Firebase.RTDB.setFloat(&fbdo, historyPath + "/temperature", sensors.temperature);
+        Firebase.RTDB.setFloat(&fbdo, historyPath + "/pressure", sensors.pressure);
+        Firebase.RTDB.setInt(&fbdo, historyPath + "/timestamp", millis());
+        
+        Serial.println("[HISTORY] Data saved to Firebase");
     }
 }
 

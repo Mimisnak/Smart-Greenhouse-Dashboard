@@ -300,6 +300,7 @@ header h1 {
     font-family: 'Courier New', monospace;
     flex: 0 0 auto;
     cursor: default;
+    -webkit-user-select: none;
     user-select: none;
     pointer-events: none;
     box-shadow: 0 0 10px rgba(0, 255, 65, 0.2);

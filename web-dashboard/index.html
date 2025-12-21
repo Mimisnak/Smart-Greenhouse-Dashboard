@@ -181,6 +181,8 @@
         signInAnonymously(auth)
             .then(() => {
                 console.log('✅ Authenticated successfully');
+                // Load Firebase history on startup
+                loadFirebaseHistory();
             })
             .catch((error) => {
                 console.error('❌ Authentication failed:', error);
@@ -436,6 +438,74 @@
 
         // Load saved data on startup
         loadChartData();
+
+        // Load Firebase history
+        async function loadFirebaseHistory() {
+            try {
+                const historyRef = ref(database, 'greenhouse/history');
+                const cutoff = Date.now() - (24 * 60 * 60 * 1000); // 24 hours ago
+                
+                onValue(historyRef, (snapshot) => {
+                    const history = snapshot.val();
+                    if (!history) {
+                        console.log('📊 No Firebase history found, using localStorage only');
+                        return;
+                    }
+                    
+                    // Convert Firebase history to chart format
+                    const timestamps = Object.keys(history).map(Number).sort();
+                    let loadedCount = 0;
+                    
+                    timestamps.forEach(timestamp => {
+                        if (timestamp < cutoff) return; // Skip old data
+                        
+                        const entry = history[timestamp];
+                        const date = new Date(timestamp);
+                        const label = date.toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit' }) + ' ' + 
+                                     date.toLocaleTimeString('el-GR', { hour: '2-digit', minute: '2-digit' });
+                        
+                        // Add to chartData if not already present
+                        if (!chartData.labels.includes(label)) {
+                            chartData.labels.push(label);
+                            chartData.moisture.push(entry.moisture || 0);
+                            chartData.temperature.push(entry.temperature || 0);
+                            chartData.pressure.push(entry.pressure || 0);
+                            loadedCount++;
+                        }
+                    });
+                    
+                    // Keep only last 288 points (24 hours at 5min intervals)
+                    const maxPoints = 288;
+                    if (chartData.labels.length > maxPoints) {
+                        chartData.labels = chartData.labels.slice(-maxPoints);
+                        chartData.moisture = chartData.moisture.slice(-maxPoints);
+                        chartData.temperature = chartData.temperature.slice(-maxPoints);
+                        chartData.pressure = chartData.pressure.slice(-maxPoints);
+                    }
+                    
+                    // Update all charts
+                    moistureChart.data.labels = chartData.labels;
+                    moistureChart.data.datasets[0].data = chartData.moisture;
+                    moistureChart.update('none');
+                    
+                    temperatureChart.data.labels = chartData.labels;
+                    temperatureChart.data.datasets[0].data = chartData.temperature;
+                    temperatureChart.update('none');
+                    
+                    pressureChart.data.labels = chartData.labels;
+                    pressureChart.data.datasets[0].data = chartData.pressure;
+                    pressureChart.update('none');
+                    
+                    // Save merged data to localStorage
+                    saveChartData();
+                    
+                    console.log(`🔄 Merged ${loadedCount} Firebase history points with localStorage`);
+                }, { onlyOnce: true }); // Load once on startup
+                
+            } catch (error) {
+                console.error('Error loading Firebase history:', error);
+            }
+        }
 
         // Chart configuration
         const chartOptions = {

@@ -383,14 +383,38 @@
 
         // ========== CHARTS SETUP ==========
         
-        // Store data in browser memory (max 288 points = 24 hours at 5min intervals)
-        const maxDataPoints = 288;
+        // Store data in browser memory (max 500 points to prevent memory issues)
+        const MAX_POINTS = 500; // Maximum points to keep in charts
+        const HISTORY_MAX_POINTS = 1000; // Maximum points to keep in localStorage
+        const maxDataPoints = MAX_POINTS; // Keep backward compatibility
+        
         const chartData = {
             moisture: [],
             temperature: [],
             pressure: [],
             labels: []
         };
+        
+        // Helper function to push data to chart with automatic point limiting
+        function pushPointToChart(chart, label, value, datasetIndex = 0) {
+            chart.data.labels.push(label);
+            chart.data.datasets[datasetIndex].data.push(value);
+            
+            // If we exceed MAX_POINTS, remove the oldest points
+            if (chart.data.labels.length > MAX_POINTS) {
+                chart.data.labels.shift();
+                chart.data.datasets[datasetIndex].data.shift();
+            }
+            
+            // Ensure consistency between labels and data
+            if (chart.data.labels.length !== chart.data.datasets[datasetIndex].data.length) {
+                const minLength = Math.min(chart.data.labels.length, chart.data.datasets[datasetIndex].data.length);
+                chart.data.labels = chart.data.labels.slice(-minLength);
+                chart.data.datasets[datasetIndex].data = chart.data.datasets[datasetIndex].data.slice(-minLength);
+            }
+            
+            chart.update('none'); // Lightweight update, no animation
+        }
 
         // Load saved data from localStorage
         function loadChartData() {
@@ -403,35 +427,91 @@
                     chartData.pressure = parsed.pressure || [];
                     chartData.labels = parsed.labels || [];
                     
+                    // Limit to HISTORY_MAX_POINTS to prevent localStorage overflow
+                    if (chartData.labels.length > HISTORY_MAX_POINTS) {
+                        chartData.labels = chartData.labels.slice(-HISTORY_MAX_POINTS);
+                        chartData.moisture = chartData.moisture.slice(-HISTORY_MAX_POINTS);
+                        chartData.temperature = chartData.temperature.slice(-HISTORY_MAX_POINTS);
+                        chartData.pressure = chartData.pressure.slice(-HISTORY_MAX_POINTS);
+                    }
+                    
                     // Remove data older than 24 hours
                     const now = Date.now();
                     const cutoff = now - (24 * 60 * 60 * 1000);
                     
-                    chartData.labels = chartData.labels.filter((label, index) => {
-                        const timestamp = new Date(label.split(' ')[0] + ' ' + label.split(' ')[1]).getTime();
-                        if (isNaN(timestamp) || timestamp < cutoff) return false;
-                        return true;
+                    const validIndices = [];
+                    chartData.labels.forEach((label, index) => {
+                        try {
+                            const timestamp = new Date(label.split(' ')[0] + ' ' + label.split(' ')[1]).getTime();
+                            if (!isNaN(timestamp) && timestamp >= cutoff) {
+                                validIndices.push(index);
+                            }
+                        } catch (e) {
+                            // Skip invalid dates
+                        }
                     });
                     
-                    // Trim other arrays to match labels length
-                    const length = chartData.labels.length;
-                    chartData.moisture = chartData.moisture.slice(-length);
-                    chartData.temperature = chartData.temperature.slice(-length);
-                    chartData.pressure = chartData.pressure.slice(-length);
+                    // Keep only valid data points
+                    chartData.labels = validIndices.map(i => chartData.labels[i]);
+                    chartData.moisture = validIndices.map(i => chartData.moisture[i]);
+                    chartData.temperature = validIndices.map(i => chartData.temperature[i]);
+                    chartData.pressure = validIndices.map(i => chartData.pressure[i]);
+                    
+                    // Ensure consistency across all arrays
+                    const minLength = Math.min(
+                        chartData.labels.length,
+                        chartData.moisture.length,
+                        chartData.temperature.length,
+                        chartData.pressure.length
+                    );
+                    chartData.labels = chartData.labels.slice(0, minLength);
+                    chartData.moisture = chartData.moisture.slice(0, minLength);
+                    chartData.temperature = chartData.temperature.slice(0, minLength);
+                    chartData.pressure = chartData.pressure.slice(0, minLength);
                     
                     console.log(`📊 Loaded ${chartData.labels.length} data points from localStorage`);
                 }
             } catch (error) {
                 console.error('Error loading chart data:', error);
+                // Clear corrupted data
+                localStorage.removeItem('greenhouseChartData');
+                chartData.moisture = [];
+                chartData.temperature = [];
+                chartData.pressure = [];
+                chartData.labels = [];
             }
         }
 
-        // Save data to localStorage
+        // Save data to localStorage with size limits
         function saveChartData() {
             try {
-                localStorage.setItem('greenhouseChartData', JSON.stringify(chartData));
+                // Limit the data before saving to prevent localStorage overflow
+                const dataToSave = {
+                    moisture: chartData.moisture.slice(-HISTORY_MAX_POINTS),
+                    temperature: chartData.temperature.slice(-HISTORY_MAX_POINTS),
+                    pressure: chartData.pressure.slice(-HISTORY_MAX_POINTS),
+                    labels: chartData.labels.slice(-HISTORY_MAX_POINTS)
+                };
+                
+                localStorage.setItem('greenhouseChartData', JSON.stringify(dataToSave));
             } catch (error) {
                 console.error('Error saving chart data:', error);
+                // If localStorage is full, clear old data and try again
+                if (error.name === 'QuotaExceededError') {
+                    console.warn('⚠️ localStorage full, clearing and retrying...');
+                    try {
+                        // Keep only last 500 points
+                        const dataToSave = {
+                            moisture: chartData.moisture.slice(-500),
+                            temperature: chartData.temperature.slice(-500),
+                            pressure: chartData.pressure.slice(-500),
+                            labels: chartData.labels.slice(-500)
+                        };
+                        localStorage.setItem('greenhouseChartData', JSON.stringify(dataToSave));
+                    } catch (e) {
+                        console.error('Failed to save even after cleanup:', e);
+                    }
+                }
             }
         }
 
@@ -473,27 +553,44 @@
                         }
                     });
                     
-                    // Keep only last 288 points (24 hours at 5min intervals)
-                    const maxPoints = 288;
-                    if (chartData.labels.length > maxPoints) {
-                        chartData.labels = chartData.labels.slice(-maxPoints);
-                        chartData.moisture = chartData.moisture.slice(-maxPoints);
-                        chartData.temperature = chartData.temperature.slice(-maxPoints);
-                        chartData.pressure = chartData.pressure.slice(-maxPoints);
+                    // Keep only last HISTORY_MAX_POINTS to prevent memory issues
+                    if (chartData.labels.length > HISTORY_MAX_POINTS) {
+                        chartData.labels = chartData.labels.slice(-HISTORY_MAX_POINTS);
+                        chartData.moisture = chartData.moisture.slice(-HISTORY_MAX_POINTS);
+                        chartData.temperature = chartData.temperature.slice(-HISTORY_MAX_POINTS);
+                        chartData.pressure = chartData.pressure.slice(-HISTORY_MAX_POINTS);
                     }
                     
-                    // Update all charts
-                    moistureChart.data.labels = chartData.labels;
-                    moistureChart.data.datasets[0].data = chartData.moisture;
-                    moistureChart.update('none');
+                    // Ensure all arrays have consistent length
+                    const minLength = Math.min(
+                        chartData.labels.length,
+                        chartData.moisture.length,
+                        chartData.temperature.length,
+                        chartData.pressure.length
+                    );
+                    chartData.labels = chartData.labels.slice(-minLength);
+                    chartData.moisture = chartData.moisture.slice(-minLength);
+                    chartData.temperature = chartData.temperature.slice(-minLength);
+                    chartData.pressure = chartData.pressure.slice(-minLength);
                     
-                    temperatureChart.data.labels = chartData.labels;
-                    temperatureChart.data.datasets[0].data = chartData.temperature;
-                    temperatureChart.update('none');
+                    // Update all charts (only update if charts exist)
+                    if (typeof moistureChart !== 'undefined' && moistureChart) {
+                        moistureChart.data.labels = chartData.labels.slice(-MAX_POINTS);
+                        moistureChart.data.datasets[0].data = chartData.moisture.slice(-MAX_POINTS);
+                        moistureChart.update('none');
+                    }
                     
-                    pressureChart.data.labels = chartData.labels;
-                    pressureChart.data.datasets[0].data = chartData.pressure;
-                    pressureChart.update('none');
+                    if (typeof temperatureChart !== 'undefined' && temperatureChart) {
+                        temperatureChart.data.labels = chartData.labels.slice(-MAX_POINTS);
+                        temperatureChart.data.datasets[0].data = chartData.temperature.slice(-MAX_POINTS);
+                        temperatureChart.update('none');
+                    }
+                    
+                    if (typeof pressureChart !== 'undefined' && pressureChart) {
+                        pressureChart.data.labels = chartData.labels.slice(-MAX_POINTS);
+                        pressureChart.data.datasets[0].data = chartData.pressure.slice(-MAX_POINTS);
+                        pressureChart.update('none');
+                    }
                     
                     // Save merged data to localStorage
                     saveChartData();
@@ -510,9 +607,18 @@
         const chartOptions = {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: {
+                mode: 'nearest',
+                intersect: false
+            },
             plugins: {
                 legend: {
                     display: false
+                },
+                tooltip: {
+                    enabled: true,
+                    mode: 'index',
+                    intersect: false
                 }
             },
             scales: {
@@ -522,7 +628,9 @@
                     },
                     ticks: {
                         color: '#00ff41',
-                        maxTicksLimit: 12
+                        maxTicksLimit: 12,
+                        autoSkip: true,
+                        maxRotation: 0
                     }
                 },
                 y: {
@@ -534,70 +642,94 @@
                     }
                 }
             },
-            animation: false
+            animation: false, // Disable animations for better performance
+            parsing: false // Disable data parsing for better performance
         };
 
-        // Initialize charts
-        const moistureChart = new Chart(document.getElementById('moistureChart'), {
-            type: 'line',
-            data: {
-                labels: chartData.labels,
-                datasets: [{
-                    label: 'Υγρασία %',
-                    data: chartData.moisture,
-                    borderColor: '#00ff41',
-                    backgroundColor: 'rgba(0, 255, 65, 0.1)',
-                    borderWidth: 2,
-                    tension: 0.4,
-                    fill: true
-                }]
-            },
-            options: {
-                ...chartOptions,
-                scales: {
-                    ...chartOptions.scales,
-                    y: {
-                        ...chartOptions.scales.y,
-                        min: 0,
-                        max: 100
+        // Initialize charts (stored globally to prevent re-creation)
+        let moistureChart = null;
+        let temperatureChart = null;
+        let pressureChart = null;
+        
+        // Initialize all charts once
+        function initCharts() {
+            // Only create charts if they don't exist
+            if (!moistureChart) {
+                moistureChart = new Chart(document.getElementById('moistureChart'), {
+                    type: 'line',
+                    data: {
+                        labels: chartData.labels.slice(-MAX_POINTS),
+                        datasets: [{
+                            label: 'Υγρασία %',
+                            data: chartData.moisture.slice(-MAX_POINTS),
+                            borderColor: '#00ff41',
+                            backgroundColor: 'rgba(0, 255, 65, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: true,
+                            pointRadius: 0, // Hide points for better performance
+                            pointHoverRadius: 4
+                        }]
+                    },
+                    options: {
+                        ...chartOptions,
+                        scales: {
+                            ...chartOptions.scales,
+                            y: {
+                                ...chartOptions.scales.y,
+                                min: 0,
+                                max: 100
+                            }
+                        }
                     }
-                }
+                });
             }
-        });
 
-        const temperatureChart = new Chart(document.getElementById('temperatureChart'), {
-            type: 'line',
-            data: {
-                labels: chartData.labels,
-                datasets: [{
-                    label: 'Θερμοκρασία °C',
-                    data: chartData.temperature,
-                    borderColor: '#ff6b9d',
-                    backgroundColor: 'rgba(255, 107, 157, 0.1)',
-                    borderWidth: 2,
-                    tension: 0.4,
-                    fill: true
-                }]
-            },
-            options: chartOptions
-        });
+            if (!temperatureChart) {
+                temperatureChart = new Chart(document.getElementById('temperatureChart'), {
+                    type: 'line',
+                    data: {
+                        labels: chartData.labels.slice(-MAX_POINTS),
+                        datasets: [{
+                            label: 'Θερμοκρασία °C',
+                            data: chartData.temperature.slice(-MAX_POINTS),
+                            borderColor: '#ff6b9d',
+                            backgroundColor: 'rgba(255, 107, 157, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: true,
+                            pointRadius: 0, // Hide points for better performance
+                            pointHoverRadius: 4
+                        }]
+                    },
+                    options: chartOptions
+                });
+            }
 
-        const pressureChart = new Chart(document.getElementById('pressureChart'), {
-            type: 'line',
-            data: {
-                labels: chartData.labels,
-                datasets: [{
-                    label: 'Πίεση hPa',
-                    data: chartData.pressure,
-                    borderColor: '#4fc3f7',
-                    backgroundColor: 'rgba(79, 195, 247, 0.1)',
-                    borderWidth: 2,
-                    tension: 0.4,
-                    fill: true
-                }]
-            },
-            options: chartOptions
-        });
+            if (!pressureChart) {
+                pressureChart = new Chart(document.getElementById('pressureChart'), {
+                    type: 'line',
+                    data: {
+                        labels: chartData.labels.slice(-MAX_POINTS),
+                        datasets: [{
+                            label: 'Πίεση hPa',
+                            data: chartData.pressure.slice(-MAX_POINTS),
+                            borderColor: '#4fc3f7',
+                            backgroundColor: 'rgba(79, 195, 247, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: true,
+                            pointRadius: 0, // Hide points for better performance
+                            pointHoverRadius: 4
+                        }]
+                    },
+                    options: chartOptions
+                });
+            }
+        }
+        
+        // Initialize charts after loading data
+        initCharts();
 
         // Update charts when new sensor data arrives
         function updateCharts(data) {
@@ -605,36 +737,58 @@
             const timeLabel = now.toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit', year: '2-digit' }) + ' ' +
                 now.toLocaleTimeString('el-GR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-            // Καταργούμε τον anti-duplicate έλεγχο: πάντα προσθέτουμε νέο σημείο
+            // Always add new data point to chartData
             console.log('DEBUG soil_moisture:', data.soil_moisture, typeof data.soil_moisture);
             chartData.labels.push(timeLabel);
             chartData.moisture.push(Number(data.soil_moisture) || 0);
             chartData.temperature.push(Number(data.temperature) || 0);
             chartData.pressure.push(Number(data.pressure) || 0);
 
-            // Remove old data if exceeds max
-            if (chartData.labels.length > maxDataPoints) {
-                chartData.labels.shift();
-                chartData.moisture.shift();
-                chartData.temperature.shift();
-                chartData.pressure.shift();
+            // Limit chartData to HISTORY_MAX_POINTS to prevent unbounded growth
+            if (chartData.labels.length > HISTORY_MAX_POINTS) {
+                chartData.labels = chartData.labels.slice(-HISTORY_MAX_POINTS);
+                chartData.moisture = chartData.moisture.slice(-HISTORY_MAX_POINTS);
+                chartData.temperature = chartData.temperature.slice(-HISTORY_MAX_POINTS);
+                chartData.pressure = chartData.pressure.slice(-HISTORY_MAX_POINTS);
+            }
+            
+            // Ensure consistency across all arrays
+            const minLength = Math.min(
+                chartData.labels.length,
+                chartData.moisture.length,
+                chartData.temperature.length,
+                chartData.pressure.length
+            );
+            if (minLength < chartData.labels.length) {
+                chartData.labels = chartData.labels.slice(-minLength);
+                chartData.moisture = chartData.moisture.slice(-minLength);
+                chartData.temperature = chartData.temperature.slice(-minLength);
+                chartData.pressure = chartData.pressure.slice(-minLength);
             }
 
+            // Save to localStorage with limits
             saveChartData();
 
-            moistureChart.data.labels = chartData.labels;
-            moistureChart.data.datasets[0].data = chartData.moisture;
-            moistureChart.update('none');
+            // Update charts using the helper function (only last MAX_POINTS)
+            if (moistureChart) {
+                moistureChart.data.labels = chartData.labels.slice(-MAX_POINTS);
+                moistureChart.data.datasets[0].data = chartData.moisture.slice(-MAX_POINTS);
+                moistureChart.update('none');
+            }
 
-            temperatureChart.data.labels = chartData.labels;
-            temperatureChart.data.datasets[0].data = chartData.temperature;
-            temperatureChart.update('none');
+            if (temperatureChart) {
+                temperatureChart.data.labels = chartData.labels.slice(-MAX_POINTS);
+                temperatureChart.data.datasets[0].data = chartData.temperature.slice(-MAX_POINTS);
+                temperatureChart.update('none');
+            }
 
-            pressureChart.data.labels = chartData.labels;
-            pressureChart.data.datasets[0].data = chartData.pressure;
-            pressureChart.update('none');
+            if (pressureChart) {
+                pressureChart.data.labels = chartData.labels.slice(-MAX_POINTS);
+                pressureChart.data.datasets[0].data = chartData.pressure.slice(-MAX_POINTS);
+                pressureChart.update('none');
+            }
 
-            console.log(`📊 Charts updated: ${chartData.labels.length} data points`);
+            console.log(`📊 Charts updated: ${chartData.labels.length} total points (displaying last ${Math.min(chartData.labels.length, MAX_POINTS)})`);
         }
 
         // Initial connection check

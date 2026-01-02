@@ -179,8 +179,7 @@
         signInAnonymously(auth)
             .then(() => {
                 console.log('✅ Authenticated successfully');
-                // Load Firebase history on startup
-                loadFirebaseHistory();
+                // Load Firebase history AFTER charts are initialized (called later in code)
             })
             .catch((error) => {
                 console.error('❌ Authentication failed:', error);
@@ -730,6 +729,19 @@
         
         // Initialize charts after loading data
         initCharts();
+        
+        // Load Firebase history after charts are created
+        if (isAuthenticated) {
+            loadFirebaseHistory();
+        } else {
+            // Wait for authentication then load history
+            onAuthStateChanged(auth, (user) => {
+                if (user && !isAuthenticated) {
+                    isAuthenticated = true;
+                    loadFirebaseHistory();
+                }
+            });
+        }
 
         // Update charts when new sensor data arrives
         function updateCharts(data) {

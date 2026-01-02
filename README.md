@@ -55,7 +55,7 @@
 
 ## Συνεισφορά & Άδεια
 
-- Copyright © 2025 mimis.dev
+- Copyright © 2026 developed by mimis.dev
 - Για εκπαιδευτική χρήση
 
 ---

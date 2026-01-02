@@ -88,7 +88,7 @@ unsigned long pumpStartTime = 0;
 unsigned long pumpDuration = 0;
 bool pumpTimerActive = false;
 unsigned long lastAutoWatering = 0;
-#define AUTO_WATERING_COOLDOWN 30000  // 30 seconds
+#define AUTO_WATERING_COOLDOWN 5000  // 5 seconds between auto-watering cycles
 #define HISTORY_UPLOAD_INTERVAL 30000  // Upload to Firebase history every 30 seconds
 
 // ========== SENSOR DATA STRUCTURE ==========

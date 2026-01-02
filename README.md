@@ -1,4 +1,4 @@
-#  Smart Greenhouse Dashboard & ESP32 Firmware
+# Smart Greenhouse Dashboard & ESP32 Firmware
 
 ## Περιγραφή
 

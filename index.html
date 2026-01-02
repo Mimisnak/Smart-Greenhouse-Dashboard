@@ -358,20 +358,45 @@
         };
 
         // Update moisture threshold
+        let isUpdatingThreshold = false;
         window.updateThreshold = async function() {
+            if (isUpdatingThreshold) {
+                alert('Παρακαλώ περιμένετε, η ενημέρωση είναι σε εξέλιξη...');
+                return;
+            }
+            
             try {
+                isUpdatingThreshold = true;
+                const btn = document.querySelector('.btn-threshold');
+                const originalText = btn.textContent;
+                btn.textContent = 'Αποστολή...';
+                btn.disabled = true;
+                
                 const threshold = parseInt(document.getElementById('moistureThreshold').value);
                 if (threshold < 0 || threshold > 100) {
                     alert('Η τιμή πρέπει να είναι μεταξύ 0-100%');
                     return;
                 }
+                
                 const thresholdRef = ref(database, 'greenhouse/controls/moisture_threshold');
                 await set(thresholdRef, threshold);
                 console.log('Threshold updated to:', threshold);
+                
+                btn.textContent = '✓ Επιτυχία!';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                }, 2000);
+                
                 alert(`Όριο υγρασίας ενημερώθηκε σε ${threshold}%`);
             } catch (error) {
                 console.error('Error updating threshold:', error);
                 alert('Σφάλμα! Δεν μπόρεσε να ενημερωθεί το όριο.');
+                const btn = document.querySelector('.btn-threshold');
+                btn.textContent = 'Ενημέρωση';
+            } finally {
+                isUpdatingThreshold = false;
+                const btn = document.querySelector('.btn-threshold');
+                btn.disabled = false;
             }
         };
 
